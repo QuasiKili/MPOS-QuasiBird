@@ -112,10 +112,20 @@ class QuasiBird(Activity):
 
         # Create pipe image pool (pre-create all pipe images)
         for i in range(self.MAX_PIPES):
-            # Top pipe (rotated 180 degrees)
+            # Top pipe (flipped using style transform)
             top_pipe = lv.image(self.screen)
             top_pipe.set_src(f"{self.ASSET_PATH}pipe.png")
+            # transform image object this way to rotate
             top_pipe.set_rotation(1800)  # 180 degrees * 10
+
+            # Alternative: use style transform rotation for 180 degree flip and pivot
+            # top_pipe.set_style_transform_rotation(1800, 0)  # 180 degrees * 10
+            # top_pipe.set_style_transform_pivot_x(20, 0)  # Center X (pipe is 40px wide)
+            # top_pipe.set_style_transform_pivot_y(100, 0)  # Center Y (pipe is 200px tall)
+
+            # you can also set width to stretch the image
+            # top_pipe.set_width(200)
+            # top_pipe.set_inner_align(lv.image.ALIGN.STRETCH)
             top_pipe.add_flag(lv.obj.FLAG.HIDDEN)  # Start hidden
 
             # Bottom pipe
@@ -156,7 +166,7 @@ class QuasiBird(Activity):
     def onResume(self, screen):
         super().onResume(screen)
 
-        lv.log_register_print_cb(self.log_callback)
+        # lv.log_register_print_cb(self.log_callback)
         self.running = True
         try:
             _thread.stack_size(mpos.apps.good_stack_size())
