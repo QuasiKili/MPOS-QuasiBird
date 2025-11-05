@@ -70,24 +70,60 @@ pipe_flipped = pipe.transpose(Image.FLIP_TOP_BOTTOM)
 pipe_flipped.save('assets/pipe_top.png', 'PNG', optimize=True)
 print("Flipped pipe sprite saved: assets/pipe_top.png")
 
-# 4. Create ground sprite (320x40)
-ground = Image.new('RGBA', (320, 40), (0, 0, 0, 0))
-draw = ImageDraw.Draw(ground)
+# 4. Create ground sprite (tileable pattern with adjustable parameters)
+def create_ground_tile(
+    width=20,           # Tile width in pixels
+    height=40,          # Tile height in pixels
+    grass_height=6,     # Height of grass strip on top
+    dirt_color='#D2691E',      # Main dirt color
+    grass_color1='#228B22',    # First grass color
+    grass_color2='#32CD32',    # Second grass color (for alternating pattern)
+    texture_color1='#A0522D',  # Vertical texture line color
+    texture_color2='#8B4513',  # Horizontal texture line color
+    add_vertical_texture=True,
+    add_horizontal_texture=True
+):
+    """
+    Create a tileable ground pattern.
 
-# Ground base
-draw.rectangle([(0, 0), (320, 40)], fill='#D2691E', outline='#8B4513', width=2)
+    Tips for tiling:
+    - Keep width small (10-40px) for better memory efficiency
+    - Use even numbers for width if using alternating grass colors
+    - Vertical textures on edges create repeating patterns
+    """
+    ground = Image.new('RGBA', (width, height), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(ground)
 
-# Add grass on top
-for i in range(0, 320, 16):
-    draw.rectangle([(i, 0), (i+8, 6)], fill='#228B22')
-    draw.rectangle([(i+8, 0), (i+16, 6)], fill='#32CD32')
+    # Ground base (dirt color)
+    draw.rectangle([(0, 0), (width, height)], fill=dirt_color)
 
-# Add some texture
-for i in range(0, 320, 20):
-    draw.line([(i, 8), (i, 38)], fill='#A0522D', width=1)
+    # Add grass on top (alternating colors for texture)
+    half_width = width // 2
+    draw.rectangle([(0, 0), (half_width, grass_height)], fill=grass_color1)
+    draw.rectangle([(half_width, 0), (width, grass_height)], fill=grass_color2)
+
+    # Add vertical texture line on left edge (will create pattern when tiled)
+    if add_vertical_texture:
+        draw.line([(0, grass_height + 2), (0, height - 2)], fill=texture_color1, width=1)
+
+    # Add horizontal texture
+    if add_horizontal_texture:
+        mid_height = height // 2
+        draw.line([(0, mid_height), (width, mid_height)], fill=texture_color2, width=1)
+
+    return ground
+
+# Generate ground with default settings (experiment by changing these!)
+ground = create_ground_tile(
+    width=20,           # Try: 10, 20, 40
+    height=40,
+    grass_height=6,
+    add_vertical_texture=True,
+    add_horizontal_texture=True
+)
 
 ground.save('assets/ground.png', 'PNG', optimize=True)
-print("Ground sprite saved: assets/ground.png")
+print(f"Ground sprite saved: assets/ground.png ({ground.width}x{ground.height} tileable)")
 
 # 5. Create background (320x240)
 bg = Image.new('RGB', (320, 240), '#87CEEB')  # Sky blue
