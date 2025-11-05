@@ -88,9 +88,10 @@ class QuasiBird(Activity):
 
         # Create pipe image pool (pre-create all pipe images)
         for i in range(self.MAX_PIPES):
-            # Top pipe (using flipped image)
+            # Top pipe (rotated 180 degrees)
             top_pipe = lv.image(self.screen)
-            top_pipe.set_src(f"{self.ASSET_PATH}pipe_top.png")
+            top_pipe.set_src(f"{self.ASSET_PATH}pipe.png")
+            top_pipe.set_rotation(1800)  # 180 degrees * 10
             top_pipe.add_flag(lv.obj.FLAG.HIDDEN)  # Start hidden
 
             # Bottom pipe
