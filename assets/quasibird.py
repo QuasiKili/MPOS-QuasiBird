@@ -5,14 +5,17 @@ import random
 from mpos.apps import Activity
 import mpos.ui
 
+
 class Pipe:
     """Represents a single pipe obstacle"""
+
     def __init__(self, x, gap_y, gap_size=60):
         self.x = x
         self.gap_y = gap_y
         self.gap_size = gap_size
         self.width = 40
         self.passed = False
+
 
 class QuasiBird(Activity):
     # Asset path
@@ -37,6 +40,11 @@ class QuasiBird(Activity):
     PIPE_SPAWN_DISTANCE = 200
     PIPE_GAP_SIZE = 80
     pipes = []
+
+    # Cloud properties (parallax effect)
+    CLOUD_SPEED = 30  # pixels per second (slower than pipes for depth)
+    cloud_images = []
+    cloud_positions = []
 
     # Game state
     score = 0
@@ -84,6 +92,19 @@ class QuasiBird(Activity):
         self.ground_img.set_inner_align(lv.image.ALIGN.TILE)
         self.ground_img.set_pos(0, self.SCREEN_HEIGHT - 40)
 
+        # Create clouds for parallax scrolling (behind bird, in front of sky)
+        cloud_start_positions = [
+            ( 50, 30),  # Cloud 1: top right
+            ( 180, 60),  # Cloud 2: middle right
+            ( 320, 40),  # Cloud 3: far right
+        ]
+        for x, y in cloud_start_positions:
+            cloud = lv.image(self.screen)
+            cloud.set_src(f"{self.ASSET_PATH}cloud.png")
+            cloud.set_pos(x, y)
+            self.cloud_images.append(cloud)
+            self.cloud_positions.append(x)
+
         # Create bird
         self.bird_img = lv.image(self.screen)
         self.bird_img.set_src(f"{self.ASSET_PATH}bird.png")
@@ -102,11 +123,9 @@ class QuasiBird(Activity):
             bottom_pipe.set_src(f"{self.ASSET_PATH}pipe.png")
             bottom_pipe.add_flag(lv.obj.FLAG.HIDDEN)  # Start hidden
 
-            self.pipe_images.append({
-                'top': top_pipe,
-                'bottom': bottom_pipe,
-                'in_use': False
-            })
+            self.pipe_images.append(
+                {"top": top_pipe, "bottom": bottom_pipe, "in_use": False}
+            )
 
         # Create score label
         self.score_label = lv.label(self.screen)
@@ -180,24 +199,36 @@ class QuasiBird(Activity):
         self.last_time = time.ticks_ms()
 
         # Hide start label
-        self.update_ui_threadsafe_if_foreground(self.start_label.add_flag, lv.obj.FLAG.HIDDEN)
+        self.update_ui_threadsafe_if_foreground(
+            self.start_label.add_flag, lv.obj.FLAG.HIDDEN
+        )
 
         # Hide all pipe images
         for pipe_img in self.pipe_images:
-            pipe_img['in_use'] = False
-            self.update_ui_threadsafe_if_foreground(pipe_img['top'].add_flag, lv.obj.FLAG.HIDDEN)
-            self.update_ui_threadsafe_if_foreground(pipe_img['bottom'].add_flag, lv.obj.FLAG.HIDDEN)
+            pipe_img["in_use"] = False
+            self.update_ui_threadsafe_if_foreground(
+                pipe_img["top"].add_flag, lv.obj.FLAG.HIDDEN
+            )
+            self.update_ui_threadsafe_if_foreground(
+                pipe_img["bottom"].add_flag, lv.obj.FLAG.HIDDEN
+            )
 
         # Spawn initial pipes
         for i in range(min(3, self.MAX_PIPES)):
             gap_y = random.randint(80, self.SCREEN_HEIGHT - 120)
-            pipe = Pipe(self.SCREEN_WIDTH + i * self.PIPE_SPAWN_DISTANCE, gap_y, self.PIPE_GAP_SIZE)
+            pipe = Pipe(
+                self.SCREEN_WIDTH + i * self.PIPE_SPAWN_DISTANCE,
+                gap_y,
+                self.PIPE_GAP_SIZE,
+            )
             self.pipes.append(pipe)
 
     def restart_game(self):
         """Restart after game over"""
         # Hide game over label
-        self.update_ui_threadsafe_if_foreground(self.game_over_label.add_flag, lv.obj.FLAG.HIDDEN)
+        self.update_ui_threadsafe_if_foreground(
+            self.game_over_label.add_flag, lv.obj.FLAG.HIDDEN
+        )
 
         # Start new game
         self.start_game()
@@ -211,46 +242,40 @@ class QuasiBird(Activity):
         """Update pipe image positions and visibility"""
         # First, mark all as not in use
         for pipe_img in self.pipe_images:
-            pipe_img['in_use'] = False
+            pipe_img["in_use"] = False
 
         # Map visible pipes to image slots
         for i, pipe in enumerate(self.pipes):
             if i < self.MAX_PIPES:
                 pipe_imgs = self.pipe_images[i]
-                pipe_imgs['in_use'] = True
+                pipe_imgs["in_use"] = True
 
                 # Show and update top pipe
                 self.update_ui_threadsafe_if_foreground(
-                    pipe_imgs['top'].remove_flag,
-                    lv.obj.FLAG.HIDDEN
+                    pipe_imgs["top"].remove_flag, lv.obj.FLAG.HIDDEN
                 )
                 self.update_ui_threadsafe_if_foreground(
-                    pipe_imgs['top'].set_pos,
-                    int(pipe.x),
-                    int(pipe.gap_y - 200)
+                    pipe_imgs["top"].set_pos, int(pipe.x), int(pipe.gap_y - 200)
                 )
 
                 # Show and update bottom pipe
                 self.update_ui_threadsafe_if_foreground(
-                    pipe_imgs['bottom'].remove_flag,
-                    lv.obj.FLAG.HIDDEN
+                    pipe_imgs["bottom"].remove_flag, lv.obj.FLAG.HIDDEN
                 )
                 self.update_ui_threadsafe_if_foreground(
-                    pipe_imgs['bottom'].set_pos,
+                    pipe_imgs["bottom"].set_pos,
                     int(pipe.x),
-                    int(pipe.gap_y + pipe.gap_size)
+                    int(pipe.gap_y + pipe.gap_size),
                 )
 
         # Hide unused pipe images
         for pipe_img in self.pipe_images:
-            if not pipe_img['in_use']:
+            if not pipe_img["in_use"]:
                 self.update_ui_threadsafe_if_foreground(
-                    pipe_img['top'].add_flag,
-                    lv.obj.FLAG.HIDDEN
+                    pipe_img["top"].add_flag, lv.obj.FLAG.HIDDEN
                 )
                 self.update_ui_threadsafe_if_foreground(
-                    pipe_img['bottom'].add_flag,
-                    lv.obj.FLAG.HIDDEN
+                    pipe_img["bottom"].add_flag, lv.obj.FLAG.HIDDEN
                 )
 
     def check_collision(self):
@@ -294,9 +319,21 @@ class QuasiBird(Activity):
 
                 # Update bird position
                 self.update_ui_threadsafe_if_foreground(
-                    self.bird_img.set_y,
-                    int(self.bird_y)
+                    self.bird_img.set_y, int(self.bird_y)
                 )
+
+                # Update cloud parallax scrolling (slower than pipes for depth)
+                for i, cloud_img in enumerate(self.cloud_images):
+                    self.cloud_positions[i] -= self.CLOUD_SPEED * delta_time
+
+                    # Wrap cloud when it goes off screen
+                    if self.cloud_positions[i] < -60:  # Cloud width is ~50px
+                        self.cloud_positions[i] = self.SCREEN_WIDTH + 20
+
+                    # Update cloud position
+                    self.update_ui_threadsafe_if_foreground(
+                        cloud_img.set_x, int(self.cloud_positions[i])
+                    )
 
                 # Update pipes
                 for pipe in self.pipes:
@@ -307,8 +344,7 @@ class QuasiBird(Activity):
                         pipe.passed = True
                         self.score += 1
                         self.update_ui_threadsafe_if_foreground(
-                            self.score_label.set_text,
-                            str(self.score)
+                            self.score_label.set_text, str(self.score)
                         )
 
                 # Remove off-screen pipes and spawn new ones
@@ -320,7 +356,11 @@ class QuasiBird(Activity):
                     if self.pipes:
                         last_pipe = self.pipes[-1]
                         gap_y = random.randint(80, self.SCREEN_HEIGHT - 120)
-                        new_pipe = Pipe(last_pipe.x + self.PIPE_SPAWN_DISTANCE, gap_y, self.PIPE_GAP_SIZE)
+                        new_pipe = Pipe(
+                            last_pipe.x + self.PIPE_SPAWN_DISTANCE,
+                            gap_y,
+                            self.PIPE_GAP_SIZE,
+                        )
                         self.pipes.append(new_pipe)
 
                 # Update pipe image positions and visibility
@@ -330,16 +370,14 @@ class QuasiBird(Activity):
                 self.ground_x -= self.PIPE_SPEED * delta_time
                 # No need to reset - tiling handles wrapping automatically
                 self.update_ui_threadsafe_if_foreground(
-                    self.ground_img.set_offset_x,
-                    int(self.ground_x)
+                    self.ground_img.set_offset_x, int(self.ground_x)
                 )
 
                 # Check collision
                 if self.check_collision():
                     self.game_over = True
                     self.update_ui_threadsafe_if_foreground(
-                        self.game_over_label.remove_flag,
-                        lv.obj.FLAG.HIDDEN
+                        self.game_over_label.remove_flag, lv.obj.FLAG.HIDDEN
                     )
 
             # Control frame rate (target ~30 FPS, but physics are framerate-independent)

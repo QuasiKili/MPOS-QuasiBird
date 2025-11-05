@@ -125,7 +125,29 @@ ground = create_ground_tile(
 ground.save('assets/ground.png', 'PNG', optimize=True)
 print(f"Ground sprite saved: assets/ground.png ({ground.width}x{ground.height} tileable)")
 
-# 5. Create background (320x240)
+# 5. Create cloud sprite (for parallax scrolling)
+def create_cloud(width=50, height=25):
+    """Create a simple cloud shape"""
+    cloud = Image.new('RGBA', (width, height), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(cloud)
+
+    # Draw overlapping circles to create cloud shape
+    center_y = height // 2
+
+    # Left puff
+    draw.ellipse([(0, center_y - 8), (20, center_y + 12)], fill='#FFFFFF')
+    # Middle puff (larger)
+    draw.ellipse([(12, center_y - 12), (38, center_y + 16)], fill='#FFFFFF')
+    # Right puff
+    draw.ellipse([(30, center_y - 8), (width, center_y + 12)], fill='#FFFFFF')
+
+    return cloud
+
+cloud = create_cloud(width=50, height=25)
+cloud.save('assets/cloud.png', 'PNG', optimize=True)
+print(f"Cloud sprite saved: assets/cloud.png ({cloud.width}x{cloud.height})")
+
+# 6. Create background (320x240)
 bg = Image.new('RGB', (320, 240), '#87CEEB')  # Sky blue
 draw = ImageDraw.Draw(bg)
 
