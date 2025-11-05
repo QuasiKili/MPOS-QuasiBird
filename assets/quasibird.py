@@ -76,9 +76,12 @@ class QuasiBird(Activity):
         self.screen.add_event_cb(self.on_tap, lv.EVENT.CLICKED, None)
         self.screen.add_event_cb(self.on_key, lv.EVENT.KEY, None)
 
-        # Create ground (will be scrolling)
+        # Create ground (will be scrolling with tiling)
         self.ground_img = lv.image(self.screen)
         self.ground_img.set_src(f"{self.ASSET_PATH}ground.png")
+        self.ground_img.set_size(self.SCREEN_WIDTH, 40)  # Set size larger than image
+
+        self.ground_img.set_inner_align(lv.image.ALIGN.TILE)
         self.ground_img.set_pos(0, self.SCREEN_HEIGHT - 40)
 
         # Create bird
@@ -323,12 +326,11 @@ class QuasiBird(Activity):
                 # Update pipe image positions and visibility
                 self.update_pipe_images()
 
-                # Update ground scrolling
+                # Update ground scrolling (using tiling with offset)
                 self.ground_x -= self.PIPE_SPEED * delta_time
-                if self.ground_x <= -320:
-                    self.ground_x = 0
+                # No need to reset - tiling handles wrapping automatically
                 self.update_ui_threadsafe_if_foreground(
-                    self.ground_img.set_x,
+                    self.ground_img.set_offset_x,
                     int(self.ground_x)
                 )
 
