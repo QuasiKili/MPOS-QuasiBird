@@ -65,6 +65,7 @@ class QuasiBird(Activity):
         self.screen = lv.obj()
         self.screen.set_style_bg_color(lv.color_hex(0x87CEEB), 0)  # Sky blue
         self.screen.set_scrollbar_mode(lv.SCROLLBAR_MODE.OFF)
+        self.screen.remove_flag(lv.obj.FLAG.SCROLLABLE)  # Disable scrolling completely
 
         # Make screen focusable for keyboard input
         focusgroup = lv.group_get_default()
