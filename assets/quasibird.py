@@ -468,8 +468,19 @@ class QuasiBird(Activity):
                         self.game_over_label.remove_flag, lv.obj.FLAG.HIDDEN
                     )
 
+            # I don't know why but sleeping here is necessary, but i have no idea what is the best value
             # Control frame rate (target ~30 FPS, but physics are framerate-independent)
-            time.sleep_ms(33)
+            # time.sleep_ms(33)
+            # time.sleep_ms(3)
+            time.sleep_ms(1)
+            # Adjust sleep based on last FPS ?
+            # fps = self.fps_buffer[0] if self.fps_buffer[0] > 0 else 30
+            # target_frame_time = 1.0 / fps
+            # elapsed_time = time.ticks_diff(time.ticks_ms(), current_time) / 1000.0
+            # sleep_time = target_frame_time - elapsed_time
+            # if sleep_time > 0:
+            #     time.sleep(sleep_time)
+
 
     # Custom log callback to capture FPS
     def log_callback(self, level, log_str):
