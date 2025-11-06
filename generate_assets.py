@@ -48,6 +48,43 @@ draw.polygon(beak, fill='#FF6B35', outline='#D84315', width=1)
 bird.save('assets/bird.png', 'PNG', optimize=True)
 print("Bird sprite saved: assets/bird.png")
 
+# 2b. Create fire bird sprite (32x32) - for beating highscore
+fire_bird = Image.new('RGBA', (32, 32), (0, 0, 0, 0))
+draw = ImageDraw.Draw(fire_bird)
+
+# Draw bird body
+draw.ellipse([(4, 6), (28, 30)], fill="#FFD700", outline="#FFA500", width=2)
+
+# Draw wing
+draw.ellipse([(16, 12), (28, 22)], fill="#FFA500", outline="#FF8C00", width=1)
+
+# Draw eye
+draw.ellipse([(8, 10), (14, 16)], fill="#FFFFFF", outline="#000000", width=1)
+draw.ellipse([(10, 12), (12, 14)], fill="#000000")
+
+# Draw beak
+beak = [(18, 18), (26, 18), (22, 22)]
+draw.polygon(beak, fill="#FF6B35", outline="#D84315", width=1)
+
+
+# Draw crown (3 points on top of head)
+crown_color = '#FFD700'  # Gold
+
+# Middle crown point (tallest)
+crown_mid = [(15, 2), (13, 8), (17, 8)]
+draw.polygon(crown_mid, fill=crown_color, outline='#FF8C00', width=1)
+
+# Left crown point
+crown_left = [(11, 4), (9, 8), (13, 8)]
+draw.polygon(crown_left, fill=crown_color, outline='#FF8C00', width=1)
+
+# Right crown point
+crown_right = [(19, 4), (17, 8), (21, 8)]
+draw.polygon(crown_right, fill=crown_color, outline='#FF8C00', width=1)
+
+fire_bird.save('assets/fire_bird.png', 'PNG', optimize=True)
+print("Fire bird sprite saved: assets/fire_bird.png (with crown!)")
+
 # 3. Create pipe sprite (40x200)
 pipe = Image.new('RGBA', (40, 200), (0, 0, 0, 0))
 draw = ImageDraw.Draw(pipe)

@@ -53,6 +53,7 @@ class QuasiBird(Activity):
     game_over = False
     game_started = False
     running = False
+    is_fire_bird = False  # Track if we're using the fire bird
 
     # Timing for framerate independence
     last_time = 0
@@ -241,6 +242,13 @@ class QuasiBird(Activity):
         self.game_started = True
         self.game_over = False
         self.score = 0
+        self.is_fire_bird = False  # Reset to normal bird
+
+        # Switch back to normal bird sprite
+        self.update_ui_threadsafe_if_foreground(
+            self.bird_img.set_src, f"{self.ASSET_PATH}bird.png"
+        )
+
         self.update_ui_threadsafe_if_foreground(
             self.score_label.set_text, str(self.score)
         )
@@ -400,6 +408,14 @@ class QuasiBird(Activity):
                         self.update_ui_threadsafe_if_foreground(
                             self.score_label.center
                         )
+
+                        # Switch to fire bird when beating highscore!
+                        if self.score > self.highscore and not self.is_fire_bird:
+                            self.is_fire_bird = True
+                            print("🔥 FIRE BIRD ACTIVATED! 🔥")
+                            self.update_ui_threadsafe_if_foreground(
+                                self.bird_img.set_src, f"{self.ASSET_PATH}fire_bird.png"
+                            )
 
                 # Remove off-screen pipes and spawn new ones
                 if self.pipes and self.pipes[0].x < -self.pipes[0].width:
