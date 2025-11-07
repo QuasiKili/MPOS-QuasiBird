@@ -190,7 +190,7 @@ class QuasiBird(Activity):
 
         # Create FPS  display (bottom left, with frame background)
         self.fps_bg = lv.obj(self.screen)
-        self.fps_bg.set_size(65, 20)
+        self.fps_bg.set_size(55, 20)
         self.fps_bg.set_style_bg_color(lv.color_hex(0x000000), 0)  # Black background
         self.fps_bg.set_style_bg_opa(180, 0)  # Semi-transparent
         self.fps_bg.set_style_border_color(lv.color_hex(0xFFFFFF), 0)  # White border
