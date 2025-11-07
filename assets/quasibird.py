@@ -1,5 +1,4 @@
 import time
-import _thread
 import random
 
 from mpos.apps import Activity
@@ -57,7 +56,6 @@ class QuasiBird(Activity):
     highscore = 0
     game_over = False
     game_started = False
-    running = False
     is_fire_bird = False  # Track if we're using the fire bird
 
     # Timing for framerate independence
@@ -209,18 +207,14 @@ class QuasiBird(Activity):
 
     def onResume(self, screen):
         super().onResume(screen)
-
-        # lv.log_register_print_cb(self.log_callback)
-        self.running = True
-        try:
-            _thread.stack_size(mpos.apps.good_stack_size())
-            _thread.start_new_thread(self.game_loop, ())
-        except Exception as e:
-            print("Could not start thread:", e)
+        lv.log_register_print_cb(self.log_callback)
+        self.last_time = time.ticks_ms()
+        mpos.ui.th.add_event_cb(self.update_frame, 1)
 
     def onStop(self, screen):
         super().onStop(screen)
-        self.running = False
+        lv.log_register_print_cb(None)
+        mpos.ui.th.remove_event_cb(self.update_frame)
 
     def on_tap(self, event):
         """Handle tap/click events"""
@@ -250,32 +244,22 @@ class QuasiBird(Activity):
         self.is_fire_bird = False  # Reset to normal bird
 
         # Switch back to normal bird sprite
-        self.update_ui_threadsafe_if_foreground(
-            self.bird_img.set_src, f"{self.ASSET_PATH}bird.png"
-        )
+        self.bird_img.set_src(f"{self.ASSET_PATH}bird.png")
 
-        self.update_ui_threadsafe_if_foreground(
-            self.score_label.set_text, str(self.score)
-        )
+        self.score_label.set_text(str(self.score))
         self.bird_y = self.SCREEN_HEIGHT / 2
         self.bird_velocity = 0
         self.pipes = []
         self.last_time = time.ticks_ms()
 
         # Hide start label
-        self.update_ui_threadsafe_if_foreground(
-            self.start_label.add_flag, lv.obj.FLAG.HIDDEN
-        )
+        self.start_label.add_flag(lv.obj.FLAG.HIDDEN)
 
         # Hide all pipe images
         for pipe_img in self.pipe_images:
             pipe_img["in_use"] = False
-            self.update_ui_threadsafe_if_foreground(
-                pipe_img["top"].add_flag, lv.obj.FLAG.HIDDEN
-            )
-            self.update_ui_threadsafe_if_foreground(
-                pipe_img["bottom"].add_flag, lv.obj.FLAG.HIDDEN
-            )
+            pipe_img["top"].add_flag(lv.obj.FLAG.HIDDEN)
+            pipe_img["bottom"].add_flag(lv.obj.FLAG.HIDDEN)
 
         # Spawn initial pipes
         for i in range(min(3, self.MAX_PIPES)):
@@ -290,9 +274,7 @@ class QuasiBird(Activity):
     def restart_game(self):
         """Restart after game over"""
         # Hide game over label
-        self.update_ui_threadsafe_if_foreground(
-            self.game_over_label.add_flag, lv.obj.FLAG.HIDDEN
-        )
+        self.game_over_label.add_flag(lv.obj.FLAG.HIDDEN)
 
         # Start new game
         self.start_game()
@@ -314,33 +296,18 @@ class QuasiBird(Activity):
                 pipe_imgs = self.pipe_images[i]
                 pipe_imgs["in_use"] = True
 
-                # Show and update top pipe
-                self.update_ui_threadsafe_if_foreground(
-                    pipe_imgs["top"].remove_flag, lv.obj.FLAG.HIDDEN
-                )
-                self.update_ui_threadsafe_if_foreground(
-                    pipe_imgs["top"].set_pos, int(pipe.x), int(pipe.gap_y - 200)
-                )
+                pipe_imgs["top"].remove_flag(lv.obj.FLAG.HIDDEN)
+                pipe_imgs["top"].set_pos(int(pipe.x), int(pipe.gap_y - 200))
 
                 # Show and update bottom pipe
-                self.update_ui_threadsafe_if_foreground(
-                    pipe_imgs["bottom"].remove_flag, lv.obj.FLAG.HIDDEN
-                )
-                self.update_ui_threadsafe_if_foreground(
-                    pipe_imgs["bottom"].set_pos,
-                    int(pipe.x),
-                    int(pipe.gap_y + pipe.gap_size),
-                )
+                pipe_imgs["bottom"].remove_flag(lv.obj.FLAG.HIDDEN)
+                pipe_imgs["bottom"].set_pos(int(pipe.x),int(pipe.gap_y + pipe.gap_size))
 
         # Hide unused pipe images
         for pipe_img in self.pipe_images:
             if not pipe_img["in_use"]:
-                self.update_ui_threadsafe_if_foreground(
-                    pipe_img["top"].add_flag, lv.obj.FLAG.HIDDEN
-                )
-                self.update_ui_threadsafe_if_foreground(
-                    pipe_img["bottom"].add_flag, lv.obj.FLAG.HIDDEN
-                )
+                pipe_img["top"].add_flag(lv.obj.FLAG.HIDDEN)
+                pipe_img["bottom"].add_flag(lv.obj.FLAG.HIDDEN)
 
     def check_collision(self):
         """Check if bird collides with pipes or boundaries"""
@@ -366,125 +333,92 @@ class QuasiBird(Activity):
 
         return False
 
-    def game_loop(self):
+    def update_frame(self, a, b):
         """Main game loop with framerate-independent physics"""
-        self.last_time = time.ticks_ms()
 
-        while self.running and self.has_foreground():
-            current_time = time.ticks_ms()
-            delta_ms = time.ticks_diff(current_time, self.last_time)
-            delta_time = delta_ms / 1000.0  # Convert to seconds
-            self.last_time = current_time
+        current_time = time.ticks_ms()
+        delta_ms = time.ticks_diff(current_time, self.last_time)
+        delta_time = delta_ms / 1000.0  # Convert to seconds
+        self.last_time = current_time
 
-            if self.game_started and not self.game_over:
-                # Update physics
-                self.bird_velocity += self.GRAVITY * delta_time
-                self.bird_y += self.bird_velocity * delta_time
+        if self.game_started and not self.game_over:
+            # Update physics
+            self.bird_velocity += self.GRAVITY * delta_time
+            self.bird_y += self.bird_velocity * delta_time
 
-                # Update bird position
-                self.update_ui_threadsafe_if_foreground(
-                    self.bird_img.set_y, int(self.bird_y)
-                )
+            # Update bird position
+            self.bird_img.set_y(int(self.bird_y))
 
-                # Update cloud parallax scrolling (slower than pipes for depth)
-                for i, cloud_img in enumerate(self.cloud_images):
-                    self.cloud_positions[i] -= self.CLOUD_SPEED * delta_time
+            # Update cloud parallax scrolling (slower than pipes for depth)
+            for i, cloud_img in enumerate(self.cloud_images):
+                self.cloud_positions[i] -= self.CLOUD_SPEED * delta_time
 
-                    # Wrap cloud when it goes off screen
-                    if self.cloud_positions[i] < -60:  # Cloud width is ~50px
-                        self.cloud_positions[i] = self.SCREEN_WIDTH + 20
+                # Wrap cloud when it goes off screen
+                if self.cloud_positions[i] < -60:  # Cloud width is ~50px
+                    self.cloud_positions[i] = self.SCREEN_WIDTH + 20
 
-                    # Update cloud position
-                    self.update_ui_threadsafe_if_foreground(
-                        cloud_img.set_x, int(self.cloud_positions[i])
+                # Update cloud position
+                cloud_img.set_x(int(self.cloud_positions[i]))
+
+            # Update pipes
+            for pipe in self.pipes:
+                pipe.x -= self.PIPE_SPEED * delta_time
+
+                # Check if pipe was passed (for scoring)
+                if not pipe.passed and pipe.x + pipe.width < self.BIRD_X:
+                    pipe.passed = True
+                    self.score += 1
+                    self.score_label.set_text(str(self.score))
+                    self.score_label.center()
+
+                    # Switch to fire bird when beating highscore!
+                    if self.score > self.highscore and not self.is_fire_bird:
+                        self.is_fire_bird = True
+                        print("! FIRE BIRD ACTIVATED !")
+                        self.bird_img.set_src(f"{self.ASSET_PATH}fire_bird.png")
+
+            # Remove off-screen pipes and spawn new ones
+            if self.pipes and self.pipes[0].x < -self.pipes[0].width:
+                # Remove the first pipe
+                self.pipes.pop(0)
+
+                # Spawn new pipe at the end
+                if self.pipes:
+                    last_pipe = self.pipes[-1]
+                    gap_y = random.randint(80, self.SCREEN_HEIGHT - 120)
+                    new_pipe = Pipe(
+                        last_pipe.x + self.PIPE_SPAWN_DISTANCE,
+                        gap_y,
+                        self.PIPE_GAP_SIZE,
                     )
+                    self.pipes.append(new_pipe)
 
-                # Update pipes
-                for pipe in self.pipes:
-                    pipe.x -= self.PIPE_SPEED * delta_time
+            # Update pipe image positions and visibility
+            self.update_pipe_images()
 
-                    # Check if pipe was passed (for scoring)
-                    if not pipe.passed and pipe.x + pipe.width < self.BIRD_X:
-                        pipe.passed = True
-                        self.score += 1
-                        self.update_ui_threadsafe_if_foreground(
-                            self.score_label.set_text, str(self.score)
-                        )
-                        self.update_ui_threadsafe_if_foreground(
-                            self.score_label.center
-                        )
+            # Update ground scrolling (using tiling with offset)
+            self.ground_x -= self.PIPE_SPEED * delta_time
+            # No need to reset - tiling handles wrapping automatically
+            self.ground_img.set_offset_x(int(self.ground_x))
 
-                        # Switch to fire bird when beating highscore!
-                        if self.score > self.highscore and not self.is_fire_bird:
-                            self.is_fire_bird = True
-                            print("🔥 FIRE BIRD ACTIVATED! 🔥")
-                            self.update_ui_threadsafe_if_foreground(
-                                self.bird_img.set_src, f"{self.ASSET_PATH}fire_bird.png"
-                            )
+            # Check collision
+            if self.check_collision():
+                self.game_over = True
 
-                # Remove off-screen pipes and spawn new ones
-                if self.pipes and self.pipes[0].x < -self.pipes[0].width:
-                    # Remove the first pipe
-                    self.pipes.pop(0)
+                # Update highscore if beaten
+                if self.score > self.highscore:
+                    self.highscore = self.score
+                    self.score = 0  # Reset score to avoid confusion
+                    self.highscore_label.set_text(f"Hi:{self.highscore}")
+                    self.highscore_label.center()
 
-                    # Spawn new pipe at the end
-                    if self.pipes:
-                        last_pipe = self.pipes[-1]
-                        gap_y = random.randint(80, self.SCREEN_HEIGHT - 120)
-                        new_pipe = Pipe(
-                            last_pipe.x + self.PIPE_SPAWN_DISTANCE,
-                            gap_y,
-                            self.PIPE_GAP_SIZE,
-                        )
-                        self.pipes.append(new_pipe)
+                    # Save new highscore to persistent storage
+                    print(f"New highscore: {self.highscore}! Saving...")
+                    editor = mpos.config.SharedPreferences("com.quasikili.quasibird").edit()
+                    editor.put_int("highscore", self.highscore)
+                    editor.commit()
 
-                # Update pipe image positions and visibility
-                self.update_pipe_images()
-
-                # Update ground scrolling (using tiling with offset)
-                self.ground_x -= self.PIPE_SPEED * delta_time
-                # No need to reset - tiling handles wrapping automatically
-                self.update_ui_threadsafe_if_foreground(
-                    self.ground_img.set_offset_x, int(self.ground_x)
-                )
-
-                # Check collision
-                if self.check_collision():
-                    self.game_over = True
-
-                    # Update highscore if beaten
-                    if self.score > self.highscore:
-                        self.highscore = self.score
-                        self.score = 0  # Reset score to avoid confusion
-                        self.update_ui_threadsafe_if_foreground(
-                            self.highscore_label.set_text, f"Hi:{self.highscore}"
-                        )
-                        self.update_ui_threadsafe_if_foreground(
-                            self.highscore_label.center
-                        )
-
-                        # Save new highscore to persistent storage
-                        print(f"New highscore: {self.highscore}! Saving...")
-                        editor = mpos.config.SharedPreferences("com.quasikili.quasibird").edit()
-                        editor.put_int("highscore", self.highscore)
-                        editor.commit()
-
-                    self.update_ui_threadsafe_if_foreground(
-                        self.game_over_label.remove_flag, lv.obj.FLAG.HIDDEN
-                    )
-
-            # I don't know why but sleeping here is necessary, but i have no idea what is the best value
-            # Control frame rate (target ~30 FPS, but physics are framerate-independent)
-            # time.sleep_ms(33)
-            # time.sleep_ms(3)
-            time.sleep_ms(1)
-            # Adjust sleep based on last FPS ?
-            # fps = self.fps_buffer[0] if self.fps_buffer[0] > 0 else 30
-            # target_frame_time = 1.0 / fps
-            # elapsed_time = time.ticks_diff(time.ticks_ms(), current_time) / 1000.0
-            # sleep_time = target_frame_time - elapsed_time
-            # if sleep_time > 0:
-            #     time.sleep(sleep_time)
+                self.game_over_label.remove_flag(lv.obj.FLAG.HIDDEN)
 
 
     # Custom log callback to capture FPS
