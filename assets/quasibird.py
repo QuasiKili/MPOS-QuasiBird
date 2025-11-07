@@ -12,7 +12,6 @@ except ImportError:
     pass  # lv is already available as a global in MicroPython OS
 
 
-
 class Pipe:
     """Represents a single pipe obstacle"""
 
@@ -40,7 +39,7 @@ class QuasiBird(Activity):
     # Bird properties
     bird_y = 120
     bird_velocity = 0
-    bird_size = 32
+    bird_size = 24  # Slightly smaller than the bird's square image, otherwise it collides before actually overlapping it
 
     # Pipe properties
     PIPE_SPEED = 100  # pixels per second
