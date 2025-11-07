@@ -205,16 +205,13 @@ class QuasiBird(Activity):
         self.setContentView(self.screen)
         print("Quasi Bird created")
 
-    def onResume(self, screen):
-        super().onResume(screen)
+    def onResume(self, screen): # Activity goes foreground
         lv.log_register_print_cb(self.log_callback)
-        self.last_time = time.ticks_ms()
         mpos.ui.th.add_event_cb(self.update_frame, 1)
 
-    def onStop(self, screen):
-        super().onStop(screen)
-        lv.log_register_print_cb(None)
+    def onPause(self, screen): # Activity goes background
         mpos.ui.th.remove_event_cb(self.update_frame)
+        lv.log_register_print_cb(None)
 
     def on_tap(self, event):
         """Handle tap/click events"""
