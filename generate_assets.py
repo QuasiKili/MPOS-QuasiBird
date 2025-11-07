@@ -184,17 +184,17 @@ cloud = create_cloud(width=50, height=25)
 cloud.save('assets/cloud.png', 'PNG', optimize=True)
 print(f"Cloud sprite saved: assets/cloud.png ({cloud.width}x{cloud.height})")
 
-# 6. Create background (320x240)
-bg = Image.new('RGB', (320, 240), '#87CEEB')  # Sky blue
-draw = ImageDraw.Draw(bg)
+# # 6. Create background (320x240)
+# bg = Image.new('RGB', (320, 240), '#87CEEB')  # Sky blue
+# draw = ImageDraw.Draw(bg)
 
-# Add some clouds
-for x, y in [(40, 30), (120, 50), (200, 35), (280, 45)]:
-    draw.ellipse([(x-20, y-10), (x+20, y+10)], fill='#FFFFFF')
-    draw.ellipse([(x-15, y-5), (x+15, y+15)], fill='#FFFFFF')
-    draw.ellipse([(x-10, y-8), (x+25, y+12)], fill='#FFFFFF')
+# # Add some clouds
+# for x, y in [(40, 30), (120, 50), (200, 35), (280, 45)]:
+#     draw.ellipse([(x-20, y-10), (x+20, y+10)], fill='#FFFFFF')
+#     draw.ellipse([(x-15, y-5), (x+15, y+15)], fill='#FFFFFF')
+#     draw.ellipse([(x-10, y-8), (x+25, y+12)], fill='#FFFFFF')
 
-bg.save('assets/background.png', 'PNG', optimize=True)
-print("Background saved: assets/background.png")
+# bg.save('assets/background.png', 'PNG', optimize=True)
+# print("Background saved: assets/background.png")
 
 print("\nAll assets generated successfully!")
