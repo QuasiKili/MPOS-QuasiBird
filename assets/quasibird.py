@@ -160,7 +160,7 @@ class QuasiBird(Activity):
 
         # Create score display (top right, with frame background)
         self.score_bg = lv.obj(self.screen)
-        self.score_bg.set_size(80, 50)
+        self.score_bg.set_size(60, 35)
         self.score_bg.set_style_bg_color(lv.color_hex(0x000000), 0)  # Black background
         self.score_bg.set_style_bg_opa(180, 0)  # Semi-transparent
         self.score_bg.set_style_border_color(lv.color_hex(0xFFFFFF), 0)  # White border
@@ -176,7 +176,7 @@ class QuasiBird(Activity):
 
         # Create highscore display (top left, with frame background)
         self.highscore_bg = lv.obj(self.screen)
-        self.highscore_bg.set_size(90, 50)
+        self.highscore_bg.set_size(60, 35)
         self.highscore_bg.set_style_bg_color(lv.color_hex(0x000000), 0)  # Black background
         self.highscore_bg.set_style_bg_opa(180, 0)  # Semi-transparent
         self.highscore_bg.set_style_border_color(lv.color_hex(0xFFD700), 0)  # Gold border
@@ -370,9 +370,9 @@ class QuasiBird(Activity):
         self.last_time = current_time
 
         if self.show_fps == 1:
-            self.fps_label.set_text(f"{self.last_fps} FPS")
+            self.fps_label.set_text(f"FPS:{self.last_fps}")
         elif self.show_fps == 2:
-            self.fps_label.set_text(f"{round(self.average_fps)} FPS")
+            self.fps_label.set_text(f"FPS:{round(self.average_fps)}")
 
         if not self.game_started or self.game_over:
             return
