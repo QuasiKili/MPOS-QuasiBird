@@ -44,6 +44,8 @@ class QuasiBird(Activity):
     PIPE_SPEED = 100  # pixels per second
     PIPE_SPAWN_DISTANCE = 200
     PIPE_GAP_SIZE = 80
+    PIPE_MIN_Y = 20
+    PIPE_MAX_Y = SCREEN_HEIGHT - 120
     pipes = []
 
     # Cloud properties (parallax effect)
@@ -289,7 +291,7 @@ class QuasiBird(Activity):
 
         # Spawn initial pipes
         for i in range(min(3, self.MAX_PIPES)):
-            gap_y = random.randint(80, self.SCREEN_HEIGHT - 120)
+            gap_y = random.randint(self.PIPE_MIN_Y, self.PIPE_MAX_Y)
             pipe = Pipe(
                 self.SCREEN_WIDTH + i * self.PIPE_SPAWN_DISTANCE,
                 gap_y,
@@ -418,7 +420,7 @@ class QuasiBird(Activity):
             # Spawn new pipe at the end
             if self.pipes:
                 last_pipe = self.pipes[-1]
-                gap_y = random.randint(80, self.SCREEN_HEIGHT - 120)
+                gap_y = random.randint(self.PIPE_MIN_Y, self.PIPE_MAX_Y)
                 new_pipe = Pipe(
                     last_pipe.x + self.PIPE_SPAWN_DISTANCE,
                     gap_y,
