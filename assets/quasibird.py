@@ -57,6 +57,7 @@ class QuasiBird(Activity):
     game_over = False
     game_started = False
     is_fire_bird = False  # Track if we're using the fire bird
+    show_fps = False
 
     # Timing for framerate independence
     last_time = 0
@@ -75,6 +76,8 @@ class QuasiBird(Activity):
     game_over_label = None
     start_label = None
     fps_buffer = [0]  # To store the latest FPS value
+    fps_label = None
+    fps_bg = None
 
     def onCreate(self):
         print("Quasi Bird starting...")
@@ -162,7 +165,6 @@ class QuasiBird(Activity):
         self.score_bg.set_style_radius(8, 0)  # Rounded corners
         self.score_bg.set_scrollbar_mode(lv.SCROLLBAR_MODE.OFF)  # Disable scrollbar
         self.score_bg.align(lv.ALIGN.TOP_RIGHT, -10, 10)
-
         self.score_label = lv.label(self.score_bg)
         self.score_label.set_text("0")
         self.score_label.set_style_text_font(lv.font_montserrat_32, 0)
@@ -179,12 +181,28 @@ class QuasiBird(Activity):
         self.highscore_bg.set_style_radius(8, 0)  # Rounded corners
         self.highscore_bg.set_scrollbar_mode(lv.SCROLLBAR_MODE.OFF)  # Disable scrollbar
         self.highscore_bg.align(lv.ALIGN.TOP_LEFT, 10, 10)
-
         self.highscore_label = lv.label(self.highscore_bg)
         self.highscore_label.set_text(f"Hi:{self.highscore}")
         self.highscore_label.set_style_text_font(lv.font_montserrat_20, 0)
         self.highscore_label.set_style_text_color(lv.color_hex(0xFFD700), 0)  # Gold text
         self.highscore_label.center()
+
+        # Create FPS  display (bottom left, with frame background)
+        self.fps_bg = lv.obj(self.screen)
+        self.fps_bg.set_size(80, 50)
+        self.fps_bg.set_style_bg_color(lv.color_hex(0x000000), 0)  # Black background
+        self.fps_bg.set_style_bg_opa(180, 0)  # Semi-transparent
+        self.fps_bg.set_style_border_color(lv.color_hex(0xFFFFFF), 0)  # White border
+        self.fps_bg.set_style_border_width(2, 0)
+        self.fps_bg.set_style_radius(8, 0)  # Rounded corners
+        self.fps_bg.set_scrollbar_mode(lv.SCROLLBAR_MODE.OFF)  # Disable scrollbar
+        self.fps_bg.align(lv.ALIGN.BOTTOM_LEFT, 10, -10)
+        self.fps_bg.add_flag(lv.obj.FLAG.HIDDEN)
+        self.fps_label = lv.label(self.fps_bg)
+        self.fps_label.set_text("0")
+        self.fps_label.set_style_text_font(lv.font_montserrat_32, 0)
+        self.fps_label.set_style_text_color(lv.color_hex(0xFFFFFF), 0)
+        self.fps_label.center()
 
         # Create start instruction label
         self.start_label = lv.label(self.screen)
@@ -232,6 +250,14 @@ class QuasiBird(Activity):
                 self.restart_game()
             else:
                 self.flap()
+        elif key == ord("B") or key == ord("b"):
+            self.show_fps = not self.show_fps
+            if self.show_fps:
+                self.fps_bg.remove_flag(lv.obj.FLAG.HIDDEN)
+            else:
+                self.fps_bg.add_flag(lv.obj.FLAG.HIDDEN)
+        else:
+            print(f"on_key: unhandled key {key}")
 
     def start_game(self):
         """Initialize game state"""
@@ -338,84 +364,89 @@ class QuasiBird(Activity):
         delta_time = delta_ms / 1000.0  # Convert to seconds
         self.last_time = current_time
 
-        if self.game_started and not self.game_over:
-            # Update physics
-            self.bird_velocity += self.GRAVITY * delta_time
-            self.bird_y += self.bird_velocity * delta_time
+        if self.show_fps:
+            self.fps_label.set_text(str(self.fps_buffer[0]))
 
-            # Update bird position
-            self.bird_img.set_y(int(self.bird_y))
+        if not self.game_started or self.game_over:
+            return
 
-            # Update cloud parallax scrolling (slower than pipes for depth)
-            for i, cloud_img in enumerate(self.cloud_images):
-                self.cloud_positions[i] -= self.CLOUD_SPEED * delta_time
+        # Update physics
+        self.bird_velocity += self.GRAVITY * delta_time
+        self.bird_y += self.bird_velocity * delta_time
 
-                # Wrap cloud when it goes off screen
-                if self.cloud_positions[i] < -60:  # Cloud width is ~50px
-                    self.cloud_positions[i] = self.SCREEN_WIDTH + 20
+        # Update bird position
+        self.bird_img.set_y(int(self.bird_y))
 
-                # Update cloud position
-                cloud_img.set_x(int(self.cloud_positions[i]))
+        # Update cloud parallax scrolling (slower than pipes for depth)
+        for i, cloud_img in enumerate(self.cloud_images):
+            self.cloud_positions[i] -= self.CLOUD_SPEED * delta_time
 
-            # Update pipes
-            for pipe in self.pipes:
-                pipe.x -= self.PIPE_SPEED * delta_time
+            # Wrap cloud when it goes off screen
+            if self.cloud_positions[i] < -60:  # Cloud width is ~50px
+                self.cloud_positions[i] = self.SCREEN_WIDTH + 20
 
-                # Check if pipe was passed (for scoring)
-                if not pipe.passed and pipe.x + pipe.width < self.BIRD_X:
-                    pipe.passed = True
-                    self.score += 1
-                    self.score_label.set_text(str(self.score))
-                    self.score_label.center()
+            # Update cloud position
+            cloud_img.set_x(int(self.cloud_positions[i]))
 
-                    # Switch to fire bird when beating highscore!
-                    if self.score > self.highscore and not self.is_fire_bird:
-                        self.is_fire_bird = True
-                        print("! FIRE BIRD ACTIVATED !")
-                        self.bird_img.set_src(f"{self.ASSET_PATH}fire_bird.png")
+        # Update pipes
+        for pipe in self.pipes:
+            pipe.x -= self.PIPE_SPEED * delta_time
 
-            # Remove off-screen pipes and spawn new ones
-            if self.pipes and self.pipes[0].x < -self.pipes[0].width:
-                # Remove the first pipe
-                self.pipes.pop(0)
+            # Check if pipe was passed (for scoring)
+            if not pipe.passed and pipe.x + pipe.width < self.BIRD_X:
+                pipe.passed = True
+                self.score += 1
+                self.score_label.set_text(str(self.score))
+                self.score_label.center()
 
-                # Spawn new pipe at the end
-                if self.pipes:
-                    last_pipe = self.pipes[-1]
-                    gap_y = random.randint(80, self.SCREEN_HEIGHT - 120)
-                    new_pipe = Pipe(
-                        last_pipe.x + self.PIPE_SPAWN_DISTANCE,
-                        gap_y,
-                        self.PIPE_GAP_SIZE,
-                    )
-                    self.pipes.append(new_pipe)
+                # Switch to fire bird when beating highscore!
+                if self.score > self.highscore and not self.is_fire_bird:
+                    self.is_fire_bird = True
+                    print("! FIRE BIRD ACTIVATED !")
+                    self.bird_img.set_src(f"{self.ASSET_PATH}fire_bird.png")
 
-            # Update pipe image positions and visibility
-            self.update_pipe_images()
+        # Remove off-screen pipes and spawn new ones
+        if self.pipes and self.pipes[0].x < -self.pipes[0].width:
+            # Remove the first pipe
+            self.pipes.pop(0)
 
-            # Update ground scrolling (using tiling with offset)
-            self.ground_x -= self.PIPE_SPEED * delta_time
-            # No need to reset - tiling handles wrapping automatically
-            self.ground_img.set_offset_x(int(self.ground_x))
+            # Spawn new pipe at the end
+            if self.pipes:
+                last_pipe = self.pipes[-1]
+                gap_y = random.randint(80, self.SCREEN_HEIGHT - 120)
+                new_pipe = Pipe(
+                    last_pipe.x + self.PIPE_SPAWN_DISTANCE,
+                    gap_y,
+                    self.PIPE_GAP_SIZE,
+                )
+                self.pipes.append(new_pipe)
 
-            # Check collision
-            if self.check_collision():
-                self.game_over = True
+        # Update pipe image positions and visibility
+        self.update_pipe_images()
 
-                # Update highscore if beaten
-                if self.score > self.highscore:
-                    self.highscore = self.score
-                    self.score = 0  # Reset score to avoid confusion
-                    self.highscore_label.set_text(f"Hi:{self.highscore}")
-                    self.highscore_label.center()
+        # Update ground scrolling (using tiling with offset)
+        self.ground_x -= self.PIPE_SPEED * delta_time
+        # No need to reset - tiling handles wrapping automatically
+        self.ground_img.set_offset_x(int(self.ground_x))
 
-                    # Save new highscore to persistent storage
-                    print(f"New highscore: {self.highscore}! Saving...")
-                    editor = mpos.config.SharedPreferences("com.quasikili.quasibird").edit()
-                    editor.put_int("highscore", self.highscore)
-                    editor.commit()
+        # Check collision
+        if self.check_collision():
+            self.game_over = True
 
-                self.game_over_label.remove_flag(lv.obj.FLAG.HIDDEN)
+            # Update highscore if beaten
+            if self.score > self.highscore:
+                self.highscore = self.score
+                self.score = 0  # Reset score to avoid confusion
+                self.highscore_label.set_text(f"Hi:{self.highscore}")
+                self.highscore_label.center()
+
+                # Save new highscore to persistent storage
+                print(f"New highscore: {self.highscore}! Saving...")
+                editor = mpos.config.SharedPreferences("com.quasikili.quasibird").edit()
+                editor.put_int("highscore", self.highscore)
+                editor.commit()
+
+            self.game_over_label.remove_flag(lv.obj.FLAG.HIDDEN)
 
 
     # Custom log callback to capture FPS
