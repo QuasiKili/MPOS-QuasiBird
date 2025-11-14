@@ -268,6 +268,8 @@ class QuasiBird(Activity):
                 self.fps_bg.remove_flag(lv.obj.FLAG.HIDDEN)
             else:
                 self.fps_bg.add_flag(lv.obj.FLAG.HIDDEN)
+        elif key == ord("Y") or key == ord("y"):
+            self.on_highscore_tap(event)
         else:
             print(f"on_key: unhandled key {key}")
 
