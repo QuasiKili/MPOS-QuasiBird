@@ -38,9 +38,11 @@ class QuasiBird(Activity):
     # Bird properties
     bird_y = 120
     bird_velocity = 0
-    bird_size = 24  # Slightly smaller than the bird's square image, otherwise it collides before actually overlapping it
+    bird_size = 32
+    bird_overlap = 6 # Only collide when there's enough overlap - real birds also don't die from brushing against something ;-)
 
     # Pipe properties
+    PIPE_IMAGE_HEIGHT = 200
     PIPE_SPEED = 100  # pixels per second
     PIPE_SPAWN_DISTANCE = 200
     PIPE_GAP_SIZE = 80
@@ -52,6 +54,9 @@ class QuasiBird(Activity):
     CLOUD_SPEED = 30  # pixels per second (slower than pipes for depth)
     cloud_images = []
     cloud_positions = []
+
+    # Ground properties
+    GROUND_HEIGHT = 40
 
     # Game state
     score = 0
@@ -108,10 +113,10 @@ class QuasiBird(Activity):
         # Create ground (will be scrolling with tiling)
         self.ground_img = lv.image(self.screen)
         self.ground_img.set_src(f"{self.ASSET_PATH}ground.png")
-        self.ground_img.set_size(self.SCREEN_WIDTH, 40)  # Set size larger than image
+        self.ground_img.set_size(self.SCREEN_WIDTH, self.GROUND_HEIGHT)  # Set size larger than image
 
         self.ground_img.set_inner_align(lv.image.ALIGN.TILE)
-        self.ground_img.set_pos(0, self.SCREEN_HEIGHT - 40)
+        self.ground_img.set_pos(0, self.SCREEN_HEIGHT - self.GROUND_HEIGHT)
 
         # Create clouds for parallax scrolling (behind bird, in front of sky)
         cloud_start_positions = [
@@ -325,7 +330,7 @@ class QuasiBird(Activity):
                 pipe_imgs["in_use"] = True
 
                 pipe_imgs["top"].remove_flag(lv.obj.FLAG.HIDDEN)
-                pipe_imgs["top"].set_pos(int(pipe.x), int(pipe.gap_y - 200))
+                pipe_imgs["top"].set_pos(int(pipe.x), int(pipe.gap_y - self.PIPE_IMAGE_HEIGHT))
 
                 # Show and update bottom pipe
                 pipe_imgs["bottom"].remove_flag(lv.obj.FLAG.HIDDEN)
@@ -340,14 +345,14 @@ class QuasiBird(Activity):
     def check_collision(self):
         """Check if bird collides with pipes or boundaries"""
         # Check ground and ceiling
-        if self.bird_y <= 0 or self.bird_y >= self.SCREEN_HEIGHT - 40 - self.bird_size:
+        if self.bird_y <= 0 or self.bird_y >= self.SCREEN_HEIGHT - self.GROUND_HEIGHT - self.bird_size + self.bird_overlap:
             return True
 
         # Check pipe collision
-        bird_left = self.BIRD_X
-        bird_right = self.BIRD_X + self.bird_size
-        bird_top = self.bird_y
-        bird_bottom = self.bird_y + self.bird_size
+        bird_left = self.BIRD_X + self.bird_overlap
+        bird_right = self.BIRD_X + self.bird_size - self.bird_overlap
+        bird_top = self.bird_y + self.bird_overlap
+        bird_bottom = self.bird_y + self.bird_size - self.bird_overlap
 
         for pipe in self.pipes:
             pipe_left = pipe.x
