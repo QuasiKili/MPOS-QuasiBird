@@ -60,6 +60,8 @@ class QuasiBird(Activity):
     game_started = False
     is_fire_bird = False  # Track if we're using the fire bird
     show_fps = 0 # 0 means off, 1 means current, 2 means average
+    game_paused = False  # Track if game is paused
+    popup_modal = None  # Reference to popup modal background
 
     # Timing for framerate independence
     last_time = 0
@@ -184,6 +186,8 @@ class QuasiBird(Activity):
         self.highscore_bg.set_style_radius(8, 0)  # Rounded corners
         self.highscore_bg.set_scrollbar_mode(lv.SCROLLBAR_MODE.OFF)  # Disable scrollbar
         self.highscore_bg.align(lv.ALIGN.TOP_LEFT, 10, 10)
+        self.highscore_bg.add_flag(lv.obj.FLAG.CLICKABLE)  # Make it clickable
+        self.highscore_bg.add_event_cb(self.on_highscore_tap, lv.EVENT.CLICKED, None)
         self.highscore_label = lv.label(self.highscore_bg)
         self.highscore_label.set_text(f"Hi:{self.highscore}")
         self.highscore_label.set_style_text_font(lv.font_montserrat_20, 0)
@@ -264,10 +268,98 @@ class QuasiBird(Activity):
         else:
             print(f"on_key: unhandled key {key}")
 
+    def on_highscore_tap(self, event):
+        """Handle tap on highscore label"""
+        if self.game_started and not self.game_over:
+            # Pause the game
+            self.game_paused = True
+
+        # Show popup asking to delete highscore
+        self.show_delete_highscore_popup()
+
+    def show_delete_highscore_popup(self):
+        """Show a popup asking if user wants to delete highscore"""
+        # Create modal background (semi-transparent overlay)
+        self.popup_modal = lv.obj(lv.layer_top())
+        self.popup_modal.set_size(self.SCREEN_WIDTH, self.SCREEN_HEIGHT)
+        self.popup_modal.set_style_bg_color(lv.color_hex(0x000000), 0)
+        self.popup_modal.set_style_bg_opa(150, 0)  # Semi-transparent
+        self.popup_modal.set_style_border_width(0, 0)
+        self.popup_modal.set_pos(0, 0)
+
+        # Create popup container
+        popup = lv.obj(self.popup_modal)
+        popup.set_size(200, 120)
+        popup.set_style_bg_color(lv.color_hex(0xFFFFFF), 0)
+        popup.set_style_border_color(lv.color_hex(0x000000), 0)
+        popup.set_style_border_width(3, 0)
+        popup.set_style_radius(10, 0)
+        popup.center()
+
+        # Create question label
+        question = lv.label(popup)
+        question.set_text("Delete high score?")
+        question.set_style_text_color(lv.color_hex(0x000000), 0)
+        question.set_style_text_font(lv.font_montserrat_16, 0)
+        question.align(lv.ALIGN.TOP_MID, 0, 15)
+
+        # Create Yes button
+        yes_btn = lv.button(popup)
+        yes_btn.set_size(75, 35)
+        yes_btn.align(lv.ALIGN.BOTTOM_LEFT, 0, 0)
+        yes_btn.add_event_cb(self.on_delete_yes, lv.EVENT.CLICKED, None)
+        yes_label = lv.label(yes_btn)
+        yes_label.set_text("Yes")
+        yes_label.center()
+
+        # Create No button
+        no_btn = lv.button(popup)
+        no_btn.set_size(75, 35)
+        no_btn.align(lv.ALIGN.BOTTOM_RIGHT, 0, 0)
+        no_btn.add_event_cb(self.on_delete_no, lv.EVENT.CLICKED, None)
+        no_label = lv.label(no_btn)
+        no_label.set_text("No")
+        no_label.center()
+
+    def on_delete_yes(self, event):
+        """Handle Yes button - delete highscore"""
+        # Reset highscore to 0
+        self.highscore = 0
+        self.highscore_label.set_text(f"Hi:{self.highscore}")
+        self.highscore_label.center()
+
+        # Save to persistent storage
+        print("Highscore deleted, saving...")
+        editor = mpos.config.SharedPreferences("com.quasikili.quasibird").edit()
+        editor.put_int("highscore", 0)
+        editor.commit()
+
+        # Close popup and unpause
+        self.close_popup()
+
+    def on_delete_no(self, event):
+        """Handle No button - cancel"""
+        # Just close popup and unpause
+        self.close_popup()
+
+    def close_popup(self):
+        """Close the popup and unpause the game"""
+        # Delete modal
+        if self.popup_modal:
+            self.popup_modal.delete()
+            self.popup_modal = None
+
+        # Unpause game
+        self.game_paused = False
+
+        # Reset last_time to avoid large delta after unpause
+        self.last_time = time.ticks_ms()
+
     def start_game(self):
         """Initialize game state"""
         self.game_started = True
         self.game_over = False
+        self.game_paused = False
         self.score = 0
         self.is_fire_bird = False  # Reset to normal bird
 
@@ -374,7 +466,7 @@ class QuasiBird(Activity):
         elif self.show_fps == 2:
             self.fps_label.set_text(f"FPS:{round(self.average_fps)}")
 
-        if not self.game_started or self.game_over:
+        if not self.game_started or self.game_over or self.game_paused:
             return
 
         # Update physics
