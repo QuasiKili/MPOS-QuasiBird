@@ -206,6 +206,7 @@ class QuasiBird(Activity):
         self.fps_bg.set_scrollbar_mode(lv.SCROLLBAR_MODE.OFF)  # Disable scrollbar
         self.fps_bg.align(lv.ALIGN.BOTTOM_LEFT, 8, -8)
         self.fps_bg.add_flag(lv.obj.FLAG.HIDDEN)
+        self.fps_bg.remove_flag(lv.obj.FLAG.CLICKABLE)  # Allow clicks to pass through to screen
         self.fps_label = lv.label(self.fps_bg)
         self.fps_label.set_text("0 FPS")
         self.fps_label.set_style_text_font(lv.font_montserrat_12, 0)
@@ -241,6 +242,21 @@ class QuasiBird(Activity):
 
     def on_tap(self, event):
         """Handle tap/click events"""
+        # Get tap coordinates
+        tap_x, tap_y = mpos.ui.get_pointer_xy()
+
+        # Check if tap is in the FPS area (bottom left corner)
+        # FPS background is 55x20 at position (8, SCREEN_HEIGHT - 8 - 20)
+        fps_left = 8
+        fps_right = 8 + 55
+        fps_top = self.SCREEN_HEIGHT - 8 - 20
+        fps_bottom = self.SCREEN_HEIGHT - 8
+
+        if (fps_left <= tap_x <= fps_right and fps_top <= tap_y <= fps_bottom):
+            # Toggle FPS display
+            self.toggle_fps()
+
+        # Always handle the tap as a normal game action
         if not self.game_started:
             self.start_game()
         elif self.game_over:
@@ -259,15 +275,19 @@ class QuasiBird(Activity):
             else:
                 self.flap()
         elif key == ord("B") or key == ord("b"):
-            self.show_fps += 1
-            if self.show_fps > 2:
-                self.show_fps = 0
-            if self.show_fps > 0:
-                self.fps_bg.remove_flag(lv.obj.FLAG.HIDDEN)
-            else:
-                self.fps_bg.add_flag(lv.obj.FLAG.HIDDEN)
+            self.toggle_fps()
         else:
             print(f"on_key: unhandled key {key}")
+
+    def toggle_fps(self):
+        """Toggle FPS display between off, current FPS, and average FPS"""
+        self.show_fps += 1
+        if self.show_fps > 2:
+            self.show_fps = 0
+        if self.show_fps > 0:
+            self.fps_bg.remove_flag(lv.obj.FLAG.HIDDEN)
+        else:
+            self.fps_bg.add_flag(lv.obj.FLAG.HIDDEN)
 
     def start_game(self):
         """Initialize game state"""
