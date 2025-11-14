@@ -272,6 +272,16 @@ class QuasiBird(Activity):
         else:
             self.flap()
 
+    def toggle_fps(self):
+        """Toggle FPS display between off, current FPS, and average FPS"""
+        self.show_fps += 1
+        if self.show_fps > 2:
+            self.show_fps = 0
+        if self.show_fps > 0:
+            self.fps_bg.remove_flag(lv.obj.FLAG.HIDDEN)
+        else:
+            self.fps_bg.add_flag(lv.obj.FLAG.HIDDEN)
+
     def on_key(self, event):
         """Handle keyboard input"""
         key = event.get_key()
@@ -283,13 +293,7 @@ class QuasiBird(Activity):
             else:
                 self.flap()
         elif key == ord("B") or key == ord("b"):
-            self.show_fps += 1
-            if self.show_fps > 2:
-                self.show_fps = 0
-            if self.show_fps > 0:
-                self.fps_bg.remove_flag(lv.obj.FLAG.HIDDEN)
-            else:
-                self.fps_bg.add_flag(lv.obj.FLAG.HIDDEN)
+            self.toggle_fps()
         elif key == ord("Y") or key == ord("y"):
             self.on_highscore_tap(event)
         else:
