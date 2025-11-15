@@ -242,10 +242,10 @@ class QuasiBird(Activity):
 
     def onResume(self, screen): # Activity goes foreground
         lv.log_register_print_cb(self.log_callback)
-        mpos.ui.th.add_event_cb(self.update_frame, 1)
+        mpos.ui.task_handler.add_event_cb(self.update_frame, 1)
 
     def onPause(self, screen): # Activity goes background
-        mpos.ui.th.remove_event_cb(self.update_frame)
+        mpos.ui.task_handler.remove_event_cb(self.update_frame)
         lv.log_register_print_cb(None)
 
     def on_tap(self, event):
