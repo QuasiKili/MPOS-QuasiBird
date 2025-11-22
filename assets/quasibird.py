@@ -178,7 +178,7 @@ class QuasiBird(Activity):
         self.score_bg.align(lv.ALIGN.TOP_RIGHT, -10, 10)
         self.score_label = lv.label(self.score_bg)
         self.score_label.set_text("0")
-        self.score_label.set_style_text_font(lv.font_montserrat_32, 0)
+        self.score_label.set_style_text_font(lv.font_montserrat_28_compressed, 0)
         self.score_label.set_style_text_color(lv.color_hex(0xFFFFFF), 0)
         self.score_label.center()
 
@@ -242,10 +242,10 @@ class QuasiBird(Activity):
 
     def onResume(self, screen): # Activity goes foreground
         lv.log_register_print_cb(self.log_callback)
-        mpos.ui.th.add_event_cb(self.update_frame, 1)
+        mpos.ui.task_handler.add_event_cb(self.update_frame, 1)
 
     def onPause(self, screen): # Activity goes background
-        mpos.ui.th.remove_event_cb(self.update_frame)
+        mpos.ui.task_handler.remove_event_cb(self.update_frame)
         lv.log_register_print_cb(None)
 
     def on_tap(self, event):
