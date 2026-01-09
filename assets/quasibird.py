@@ -57,7 +57,7 @@ class QuasiBird(Activity):
     cloud_positions = []
 
     # Ground properties
-    GROUND_HEIGHT = 40
+    GROUND_HEIGHT = 20 # less high means less display updates to do
 
     # Game state
     score = 0
@@ -242,7 +242,7 @@ class QuasiBird(Activity):
 
     def onResume(self, screen): # Activity goes foreground
         lv.log_register_print_cb(self.log_callback)
-        mpos.ui.task_handler.add_event_cb(self.update_frame, 1)
+        mpos.ui.task_handler.add_event_cb(self.update_frame, 1) # replace 1 with mpos.ui.task_handler.TASK_HANDLER_STARTED after MPOS 0.5.3 is released
 
     def onPause(self, screen): # Activity goes background
         mpos.ui.task_handler.remove_event_cb(self.update_frame)
