@@ -1,9 +1,9 @@
 import time
 import random
 
-from mpos.apps import Activity
-import mpos.ui
 import mpos.config
+from mpos import Activity
+from mpos.ui import task_handler, get_pointer_xy
 from mpos.ui.focus_direction import emulate_focus_obj
 
 try:
@@ -242,16 +242,16 @@ class QuasiBird(Activity):
 
     def onResume(self, screen): # Activity goes foreground
         lv.log_register_print_cb(self.log_callback)
-        mpos.ui.task_handler.add_event_cb(self.update_frame, 1)
+        task_handler.add_event_cb(self.update_frame, task_handler.TASK_HANDLER_STARTED)
 
     def onPause(self, screen): # Activity goes background
-        mpos.ui.task_handler.remove_event_cb(self.update_frame)
+        task_handler.remove_event_cb(self.update_frame)
         lv.log_register_print_cb(None)
 
     def on_tap(self, event):
         """Handle tap/click events"""
         # Get tap coordinates
-        tap_x, tap_y = mpos.ui.get_pointer_xy()
+        tap_x, tap_y = get_pointer_xy()
 
         # Check if tap is in the FPS area (bottom left corner)
         # FPS background is 55x20 at position (8, SCREEN_HEIGHT - 8 - 20)
