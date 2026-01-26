@@ -25,27 +25,27 @@ os.makedirs('res/mipmap-mdpi', exist_ok=True)
 os.makedirs('assets', exist_ok=True)
 
 # 1. Create app icon (64x64)
-img = Image.new('RGBA', (64, 64), (0, 0, 0, 0))
-draw = ImageDraw.Draw(img)
+# img = Image.new('RGBA', (64, 64), (0, 0, 0, 0))
+# draw = ImageDraw.Draw(img)
 
-# Draw bird body (yellow circle)
-draw.ellipse([(7, 12), (53, 58)], fill=COLORS["sun_yellow"], outline=COLORS["dark_orange"], width=3) # Original width 12 / 4 = 3, increased by 5 pixels
+# # Draw bird body (yellow circle)
+# draw.ellipse([(7, 12), (53, 58)], fill=COLORS["sun_yellow"], outline=COLORS["dark_orange"], width=3) # Original width 12 / 4 = 3, increased by 5 pixels
 
-# Draw wing
-draw.ellipse([(17, 37), (42, 52)], fill=COLORS["dark_orange"], outline=COLORS["red_orange"], width=2) # Original width 8 / 4 = 2, increased by 5 pixels
+# # Draw wing
+# draw.ellipse([(17, 37), (42, 52)], fill=COLORS["dark_orange"], outline=COLORS["red_orange"], width=2) # Original width 8 / 4 = 2, increased by 5 pixels
 
-# Draw eye
-draw.ellipse([(34, 24), (44, 34)], fill=COLORS["white"], outline=COLORS["black"], width=2) # Original width 8 / 4 = 2, increased by 5 pixels
-draw.ellipse([(37, 27), (41, 31)], fill=COLORS["black"])
+# # Draw eye
+# draw.ellipse([(34, 24), (44, 34)], fill=COLORS["white"], outline=COLORS["black"], width=2) # Original width 8 / 4 = 2, increased by 5 pixels
+# draw.ellipse([(37, 27), (41, 31)], fill=COLORS["black"])
 
-# Draw beak
-beak = [(46, 36), (58, 36), (51, 42)] # Original width 4 / 4 = 1, increased by 5 pixels
-draw.polygon(beak, fill=COLORS["dark_orange"], outline=COLORS["red_orange"], width=1)
-beak = [(46, 36), (58, 36), (51, 30)] # Original width 4 / 4 = 1, increased by 5 pixels
-draw.polygon(beak, fill=COLORS["dark_orange"], outline=COLORS["red_orange"], width=1)
+# # Draw beak
+# beak = [(46, 36), (58, 36), (51, 42)] # Original width 4 / 4 = 1, increased by 5 pixels
+# draw.polygon(beak, fill=COLORS["dark_orange"], outline=COLORS["red_orange"], width=1)
+# beak = [(46, 36), (58, 36), (51, 30)] # Original width 4 / 4 = 1, increased by 5 pixels
+# draw.polygon(beak, fill=COLORS["dark_orange"], outline=COLORS["red_orange"], width=1)
 
-img.save('res/mipmap-mdpi/icon_64x64.png', 'PNG', optimize=True)
-print("Icon saved: res/mipmap-mdpi/icon_64x64.png")
+# img.save('res/mipmap-mdpi/icon_64x64.png', 'PNG', optimize=True)
+# print("Icon saved: res/mipmap-mdpi/icon_64x64.png")
 
 # 2. Create bird sprite (32x32)
 bird = Image.new('RGBA', (32, 32), (0, 0, 0, 0))
