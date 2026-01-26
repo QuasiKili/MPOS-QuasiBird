@@ -2,6 +2,24 @@
 from PIL import Image, ImageDraw, ImageFont
 import os
 
+COLORS = {
+    "black": "#000000",
+    "white": "#FFFFFF",
+    "dark_blue_gray": "#2C3E50",
+    "charcoal_gray": "#34495E",
+    "light_gray": "#95A5A6",
+    "sun_yellow": "#F1C40F",
+    "dark_orange": "#F39C12",
+    "red_orange": "#E74C3C",
+    "dark_red": "#C0392B",
+    "emerald_green": "#2ECC71",
+    "bright_blue": "#3498DB",
+    "steel_blue": "#2980B9",
+    "light_silver": "#ECF0F1",
+    "silver_gray": "#BDC3C7",
+    "amethyst_purple": "#9B59B6",
+}
+
 # Ensure output directories exist
 os.makedirs('res/mipmap-mdpi', exist_ok=True)
 os.makedirs('assets', exist_ok=True)
@@ -11,18 +29,20 @@ img = Image.new('RGBA', (64, 64), (0, 0, 0, 0))
 draw = ImageDraw.Draw(img)
 
 # Draw bird body (yellow circle)
-draw.ellipse([(12, 18), (48, 54)], fill='#FFD700', outline='#FFA500', width=3)
+draw.ellipse([(7, 12), (53, 58)], fill=COLORS["sun_yellow"], outline=COLORS["dark_orange"], width=3) # Original width 12 / 4 = 3, increased by 5 pixels
 
 # Draw wing
-draw.ellipse([(32, 28), (52, 44)], fill='#FFA500', outline='#FF8C00', width=2)
+draw.ellipse([(17, 37), (42, 52)], fill=COLORS["dark_orange"], outline=COLORS["red_orange"], width=2) # Original width 8 / 4 = 2, increased by 5 pixels
 
 # Draw eye
-draw.ellipse([(20, 24), (30, 34)], fill='#FFFFFF', outline='#000000', width=2)
-draw.ellipse([(23, 27), (27, 31)], fill='#000000')
+draw.ellipse([(34, 24), (44, 34)], fill=COLORS["white"], outline=COLORS["black"], width=2) # Original width 8 / 4 = 2, increased by 5 pixels
+draw.ellipse([(37, 27), (41, 31)], fill=COLORS["black"])
 
 # Draw beak
-beak = [(32, 36), (46, 36), (39, 42)]
-draw.polygon(beak, fill='#FF6B35', outline='#D84315', width=1)
+beak = [(46, 36), (58, 36), (51, 42)] # Original width 4 / 4 = 1, increased by 5 pixels
+draw.polygon(beak, fill=COLORS["dark_orange"], outline=COLORS["red_orange"], width=1)
+beak = [(46, 36), (58, 36), (51, 30)] # Original width 4 / 4 = 1, increased by 5 pixels
+draw.polygon(beak, fill=COLORS["dark_orange"], outline=COLORS["red_orange"], width=1)
 
 img.save('res/mipmap-mdpi/icon_64x64.png', 'PNG', optimize=True)
 print("Icon saved: res/mipmap-mdpi/icon_64x64.png")
@@ -32,18 +52,20 @@ bird = Image.new('RGBA', (32, 32), (0, 0, 0, 0))
 draw = ImageDraw.Draw(bird)
 
 # Draw bird body
-draw.ellipse([(4, 6), (28, 30)], fill='#FFD700', outline='#FFA500', width=2)
+draw.ellipse([(4, 6), (25, 27)], fill=COLORS["sun_yellow"], outline=COLORS["dark_orange"], width=1) # Original width 12 / 8 = 1.5, rounded to 1
 
 # Draw wing
-draw.ellipse([(16, 12), (28, 22)], fill='#FFA500', outline='#FF8C00', width=1)
+draw.ellipse([(7, 17), (20, 25)], fill=COLORS["dark_orange"], outline=COLORS["red_orange"], width=1) # Original width 8 / 8 = 1
 
 # Draw eye
-draw.ellipse([(8, 10), (14, 16)], fill='#FFFFFF', outline='#000000', width=1)
-draw.ellipse([(10, 12), (12, 14)], fill='#000000')
+draw.ellipse([(16, 11), (21, 16)], fill=COLORS["white"], outline=COLORS["black"], width=1) # Original width 8 / 8 = 1
+draw.ellipse([(18, 13), (19, 14)], fill=COLORS["black"])
 
 # Draw beak
-beak = [(18, 18), (26, 18), (22, 22)]
-draw.polygon(beak, fill='#FF6B35', outline='#D84315', width=1)
+beak = [(22, 17), (28, 17), (24, 20)] # Original width 4 / 8 = 0.5, rounded to 1
+draw.polygon(beak, fill=COLORS["dark_orange"], outline=COLORS["red_orange"], width=1)
+beak = [(22, 17), (28, 17), (24, 14)] # Original width 4 / 8 = 0.5, rounded to 1
+draw.polygon(beak, fill=COLORS["dark_orange"], outline=COLORS["red_orange"], width=1)
 
 bird.save('assets/bird.png', 'PNG', optimize=True)
 print("Bird sprite saved: assets/bird.png")
@@ -53,19 +75,14 @@ fire_bird = Image.new('RGBA', (32, 32), (0, 0, 0, 0))
 draw = ImageDraw.Draw(fire_bird)
 
 # Draw bird body
-draw.ellipse([(4, 6), (28, 30)], fill="#FFD700", outline="#FFA500", width=2)
+draw.ellipse([(4, 6), (25, 27)], fill=COLORS["dark_red"], outline=COLORS["dark_orange"], width=1)
 
 # Draw wing
-draw.ellipse([(16, 12), (28, 22)], fill="#FFA500", outline="#FF8C00", width=1)
+draw.ellipse([(7, 17), (20, 25)], fill=COLORS["dark_orange"], outline=COLORS["red_orange"], width=1)
 
 # Draw eye
-draw.ellipse([(8, 10), (14, 16)], fill="#FFFFFF", outline="#000000", width=1)
-draw.ellipse([(10, 12), (12, 14)], fill="#000000")
-
-# Draw beak
-beak = [(18, 18), (26, 18), (22, 22)]
-draw.polygon(beak, fill="#FF6B35", outline="#D84315", width=1)
-
+draw.ellipse([(16, 11), (21, 16)], fill=COLORS["white"], outline=COLORS["black"], width=1)
+draw.ellipse([(18, 13), (19, 14)], fill=COLORS["black"])
 
 # Draw crown (3 points on top of head)
 crown_color = '#FFD700'  # Gold
@@ -82,8 +99,14 @@ draw.polygon(crown_left, fill=crown_color, outline='#FF8C00', width=1)
 crown_right = [(19, 4), (17, 8), (21, 8)]
 draw.polygon(crown_right, fill=crown_color, outline='#FF8C00', width=1)
 
+# Draw beak
+beak = [(22, 17), (28, 17), (24, 20)]
+draw.polygon(beak, fill=COLORS["dark_orange"], outline=COLORS["red_orange"], width=1)
+beak = [(22, 17), (28, 17), (24, 14)]
+draw.polygon(beak, fill=COLORS["dark_orange"], outline=COLORS["red_orange"], width=1)
+
 fire_bird.save('assets/fire_bird.png', 'PNG', optimize=True)
-print("Fire bird sprite saved: assets/fire_bird.png (with crown!)")
+print("Fire bird sprite saved: assets/fire_bird.png")
 
 # 3. Create pipe sprite (40x200)
 pipe = Image.new('RGBA', (40, 200), (0, 0, 0, 0))
