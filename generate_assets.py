@@ -120,8 +120,10 @@ def create_gray_bird(size=(32, 32), filename='assets/gray_bird.png'):
     draw.ellipse([(7, 17), (20, 25)], fill=COLORS["silver_gray"], outline=COLORS["dark_blue_gray"], width=1)
 
     # Draw eye (white with black pupil)
-    draw.ellipse([(16, 11), (21, 16)], fill=COLORS["white"], outline=COLORS["black"], width=1)
-    draw.ellipse([(18, 13), (19, 14)], fill=COLORS["black"])
+    # draw.ellipse([(16, 11), (21, 16)], fill=COLORS["white"], outline=COLORS["black"], width=1)
+    # draw.ellipse([(18, 13), (19, 14)], fill=COLORS["black"])
+    draw.line([(17, 11), (20, 14)], fill=COLORS["black"],width=1)
+    draw.line([(17, 14), (20, 11)], fill=COLORS["black"],width=1)
 
     # Draw beak (light gray with silver gray outline)
     beak = [(22, 17), (28, 17), (24, 20)]

@@ -75,6 +75,7 @@ class QuasiBird(Activity):
     # UI Elements
     screen = None
     bird_img = None
+    ghost_bird_img = None # New instance variable for the ghost bird
     pipe_images = []
     MAX_PIPES = 4  # Maximum number of pipe pairs to display
     ground_img = None
@@ -138,6 +139,12 @@ class QuasiBird(Activity):
         self.bird_img = lv.image(self.screen)
         self.bird_img.set_src(f"{self.ASSET_PATH}bird.png")
         self.bird_img.set_pos(self.BIRD_X, int(self.bird_y))
+
+        # Create ghost bird (initially hidden)
+        self.ghost_bird_img = lv.image(self.screen)
+        self.ghost_bird_img.set_src(f"{self.ASSET_PATH}gray_bird.png")
+        self.ghost_bird_img.add_flag(lv.obj.FLAG.HIDDEN)
+        self.ghost_bird_img.set_pos(self.BIRD_X, int(self.bird_y))
 
         # Create pipe image pool (pre-create all pipe images)
         for i in range(self.MAX_PIPES):
@@ -230,7 +237,7 @@ class QuasiBird(Activity):
 
         # Create game over label (hidden initially)
         self.game_over_label = lv.label(self.screen)
-        self.game_over_label.set_text("Game Over!\nTap to Restart")
+        self.game_over_label.set_text("Game Over!\n") # Initially just "Game Over!"
         self.game_over_label.set_style_text_font(lv.font_montserrat_20, lv.PART.MAIN)
         self.game_over_label.set_style_text_color(lv.color_hex(0xFF0000), lv.PART.MAIN)
         self.game_over_label.set_style_text_align(lv.TEXT_ALIGN.CENTER, lv.PART.MAIN)
@@ -415,7 +422,10 @@ class QuasiBird(Activity):
         self.is_fire_bird = False  # Reset to normal bird
         self.game_over_time = 0 # Reset game over time
 
-        # Switch back to normal bird sprite
+        # Hide ghost bird
+        self.ghost_bird_img.add_flag(lv.obj.FLAG.HIDDEN)
+        # Show normal bird sprite
+        self.bird_img.remove_flag(lv.obj.FLAG.HIDDEN)
         self.bird_img.set_src(f"{self.ASSET_PATH}bird.png")
 
         self.score_label.set_text(str(self.score))
@@ -448,6 +458,9 @@ class QuasiBird(Activity):
         # Hide game over label
         self.game_over_label.add_flag(lv.obj.FLAG.HIDDEN)
         self.game_over_time = 0 # Reset game over time
+
+        # Hide ghost bird
+        self.ghost_bird_img.add_flag(lv.obj.FLAG.HIDDEN)
 
         # Start new game
         self.start_game()
@@ -523,9 +536,12 @@ class QuasiBird(Activity):
             return
 
         if self.game_over:
-            # Make the gray bird float upwards
+            # Make the ghost bird float upwards
             self.bird_y += self.ghost_bird_float_velocity * delta_time
-            self.bird_img.set_y(int(self.bird_y))
+            self.ghost_bird_img.set_y(int(self.bird_y))
+            # Check if 2 seconds have passed since game over to update the label
+            if self.game_over_time > 0 and (current_time - self.game_over_time) >= 2000:
+                self.game_over_label.set_text("Game Over!\nTap to Restart")
             return
 
         # Update physics
@@ -592,8 +608,11 @@ class QuasiBird(Activity):
             self.game_over = True
             self.game_over_time = current_time # Record game over time
 
-            # Change bird sprite to gray
-            self.bird_img.set_src(f"{self.ASSET_PATH}gray_bird.png")
+            # Hide the original bird
+            # self.bird_img.add_flag(lv.obj.FLAG.HIDDEN)
+            # Show the ghost bird at the original bird's position
+            self.ghost_bird_img.set_pos(self.BIRD_X, int(self.bird_y))
+            self.ghost_bird_img.remove_flag(lv.obj.FLAG.HIDDEN)
 
             # Update highscore if beaten
             if self.score > self.highscore:
@@ -608,6 +627,8 @@ class QuasiBird(Activity):
                 editor.put_int("highscore", self.highscore)
                 editor.commit()
 
+            # Show "Game Over!" immediately
+            self.game_over_label.set_text("Game Over!\n")
             self.game_over_label.remove_flag(lv.obj.FLAG.HIDDEN)
 
     average_samples = 20
