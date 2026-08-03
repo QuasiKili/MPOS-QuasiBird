@@ -109,6 +109,10 @@ class QuasiBird(Activity):
         focusgroup = lv.group_get_default()
         if focusgroup:
             focusgroup.add_obj(self.screen)
+            # Explicit focus: tap/click events are dispatched by coordinate and work
+            # regardless, but KEY events (B/Y buttons) only reach the focused object.
+            # Without this, key presses go to whichever object previously had focus.
+            lv.group_focus_obj(self.screen)
 
         # Event handlers
         self.screen.add_event_cb(self.on_tap, lv.EVENT.CLICKED, None)
