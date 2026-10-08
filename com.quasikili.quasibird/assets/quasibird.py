@@ -12,8 +12,8 @@ except ImportError:
 class Pipe:
     """Represents a single pipe obstacle"""
 
-    def __init__(self, x, gap_y, gap_size=60):
-        self.x = x
+    def __init__(self, x_fp, gap_y, gap_size=60):
+        self.x_fp = x_fp  # milli-pixels (int fixed-point, see QuasiBird._FP)
         self.gap_y = gap_y
         self.gap_size = gap_size
         self.width = 40
@@ -28,20 +28,27 @@ class QuasiBird(Activity):
     SCREEN_WIDTH = DisplayMetrics.width()
     SCREEN_HEIGHT = DisplayMetrics.height()
 
-    # Game physics constants
-    GRAVITY = 200  # pixels per second^2
-    FLAP_VELOCITY = -50  # pixels per second
+    # Fixed-point scale: positions are milli-pixels (int), velocities are
+    # milli-pixels per second (int). MicroPython floats are heap objects, so
+    # float physics at 60 Hz means ~20 short-lived allocations per frame and
+    # constant GC pressure. Integer math avoids all of that; LVGL takes ints
+    # anyway, so nothing is lost by converting to pixels at the display call.
+    _FP = 1000
+
+    # Game physics constants (pixels per second, scaled to fixed-point)
+    GRAVITY_FP = 200 * _FP  # pixels per second^2
+    FLAP_FP = -50 * _FP  # pixels per second
     BIRD_X = 60  # Fixed X position
 
     # Bird properties
-    bird_y = 120
-    bird_velocity = 0
+    bird_y_fp = 120 * _FP
+    bird_vel_fp = 0
     bird_size = 32
     bird_overlap = 6 # Only collide when there's enough overlap - real birds also don't die from brushing against something ;-)
 
     # Pipe properties
     PIPE_IMAGE_HEIGHT = 200
-    PIPE_SPEED = 100  # pixels per second
+    PIPE_SPEED_FP = 100 * _FP  # pixels per second
     PIPE_SPAWN_DISTANCE = 200
     PIPE_GAP_SIZE = 80
     PIPE_MIN_Y = 20
@@ -49,7 +56,7 @@ class QuasiBird(Activity):
     pipes = []
 
     # Cloud properties (parallax effect)
-    CLOUD_SPEED = 30  # pixels per second (slower than pipes for depth)
+    CLOUD_SPEED_FP = 30 * _FP  # pixels per second (slower than pipes for depth)
     cloud_images = []
     cloud_positions = []
 
@@ -67,7 +74,7 @@ class QuasiBird(Activity):
     popup_modal = None  # Reference to popup modal background
     update_timer = None  # Reference to LVGL timer for frame updates
     game_over_time = 0 # Time when game over occurred
-    ghost_bird_float_velocity = -20 # Pixels per second for ghost bird to float up
+    GHOST_VEL_FP = -20 * _FP  # milli-pixels per second for ghost bird to float up
 
     # Timing for framerate independence
     last_time = 0
@@ -78,16 +85,22 @@ class QuasiBird(Activity):
     ghost_bird_img = None # New instance variable for the ghost bird
     pipe_images = []
     MAX_PIPES = 4  # Maximum number of pipe pairs to display
-    ground_img = None
-    ground_x = 0
+    ground_a = None  # ping-pong strip images (None when using tiled fallback)
+    ground_b = None
+    ground_tiled = None  # TILE-mode fallback for screens wider than 240px
+    ground_fp = 0  # milli-pixels scrolled, kept modulo one screen width
+    _last_ground_off = None  # last offset sent to tiled fallback, to skip redundant invalidates
+    _frame_no = 0  # update_frame counter (clouds refresh on even frames)
     score_label = None
     score_bg = None
     highscore_label = None
     highscore_bg = None
     game_over_label = None
     start_label = None
-    avg_fps = 0
+    average_fps = 0
     last_fps = 0  # To store the latest FPS value
+    _last_fps_text = None  # last string sent to fps_label, to skip redundant set_text
+    _game_over_final_shown = False  # "Tap to Restart" text already set
     fps_label = None
     fps_bg = None
 
@@ -118,13 +131,26 @@ class QuasiBird(Activity):
         self.screen.add_event_cb(self.on_tap, lv.EVENT.CLICKED, None)
         self.screen.add_event_cb(self.on_key, lv.EVENT.KEY, None)
 
-        # Create ground (will be scrolling with tiling)
-        self.ground_img = lv.image(self.screen)
-        self.ground_img.set_src(f"{self.ASSET_PATH}ground.png")
-        self.ground_img.set_size(self.SCREEN_WIDTH, self.GROUND_HEIGHT)  # Set size larger than image
-
-        self.ground_img.set_inner_align(lv.image.ALIGN.TILE)
-        self.ground_img.set_pos(0, self.SCREEN_HEIGHT - self.GROUND_HEIGHT)
+        # Create scrolling ground: two 240px strip images leapfrogging via
+        # set_x (1 draw call each, opaque fast path) instead of one TILE-mode
+        # object (12 draw calls per frame for the 20px tile). Falls back to
+        # tiling on screens the strip asset can't cover.
+        _gy = self.SCREEN_HEIGHT - self.GROUND_HEIGHT
+        if self.SCREEN_WIDTH == 240:
+            self.ground_a = lv.image(self.screen)
+            self.ground_a.set_src(f"{self.ASSET_PATH}ground_strip.png")
+            self.ground_a.set_size(self.SCREEN_WIDTH, self.GROUND_HEIGHT)
+            self.ground_a.set_pos(0, _gy)
+            self.ground_b = lv.image(self.screen)
+            self.ground_b.set_src(f"{self.ASSET_PATH}ground_strip.png")
+            self.ground_b.set_size(self.SCREEN_WIDTH, self.GROUND_HEIGHT)
+            self.ground_b.set_pos(self.SCREEN_WIDTH, _gy)
+        else:
+            self.ground_tiled = lv.image(self.screen)
+            self.ground_tiled.set_src(f"{self.ASSET_PATH}ground.png")
+            self.ground_tiled.set_size(self.SCREEN_WIDTH, self.GROUND_HEIGHT)  # Set size larger than image
+            self.ground_tiled.set_inner_align(lv.image.ALIGN.TILE)
+            self.ground_tiled.set_pos(0, _gy)
 
         # Create clouds for parallax scrolling (behind bird, in front of sky)
         cloud_start_positions = [
@@ -137,35 +163,26 @@ class QuasiBird(Activity):
             cloud.set_src(f"{self.ASSET_PATH}cloud.png")
             cloud.set_pos(x, y)
             self.cloud_images.append(cloud)
-            self.cloud_positions.append(x)
+            self.cloud_positions.append(x * self._FP)
 
         # Create bird
         self.bird_img = lv.image(self.screen)
         self.bird_img.set_src(f"{self.ASSET_PATH}bird.png")
-        self.bird_img.set_pos(self.BIRD_X, int(self.bird_y))
+        self.bird_img.set_pos(self.BIRD_X, self.bird_y_fp // self._FP)
 
         # Create ghost bird (initially hidden)
         self.ghost_bird_img = lv.image(self.screen)
         self.ghost_bird_img.set_src(f"{self.ASSET_PATH}gray_bird.png")
         self.ghost_bird_img.add_flag(lv.obj.FLAG.HIDDEN)
-        self.ghost_bird_img.set_pos(self.BIRD_X, int(self.bird_y))
+        self.ghost_bird_img.set_pos(self.BIRD_X, self.bird_y_fp // self._FP)
 
         # Create pipe image pool (pre-create all pipe images)
         for i in range(self.MAX_PIPES):
-            # Top pipe (flipped using style transform)
+            # Top pipe (pre-flipped asset: identical pixels to pipe.png rotated
+            # 180 degrees, but takes LVGL's fast direct-blend path instead of
+            # the per-pixel transform path, with a smaller invalidated area)
             top_pipe = lv.image(self.screen)
-            top_pipe.set_src(f"{self.ASSET_PATH}pipe.png")
-            # transform image object this way to rotate
-            top_pipe.set_rotation(1800)  # 180 degrees * 10
-
-            # Alternative: use style transform rotation for 180 degree flip and pivot
-            # top_pipe.set_style_transform_rotation(1800, lv.PART.MAIN)  # 180 degrees * 10
-             # top_pipe.set_style_transform_pivot_x(20, lv.PART.MAIN)  # Center X (pipe is 40px wide)
-             # top_pipe.set_style_transform_pivot_y(100, lv.PART.MAIN)  # Center Y (pipe is 200px tall)
-
-            # you can also set width to stretch the image
-            # top_pipe.set_width(200)
-            # top_pipe.set_inner_align(lv.image.ALIGN.STRETCH)
+            top_pipe.set_src(f"{self.ASSET_PATH}pipe_top.png")
             top_pipe.add_flag(lv.obj.FLAG.HIDDEN)  # Start hidden
 
             # Bottom pipe
@@ -437,8 +454,17 @@ class QuasiBird(Activity):
         self.bird_img.set_src(f"{self.ASSET_PATH}bird.png")
 
         self.score_label.set_text(str(self.score))
-        self.bird_y = self.SCREEN_HEIGHT / 2
-        self.bird_velocity = 0
+        self.bird_y_fp = (self.SCREEN_HEIGHT // 2) * self._FP
+        self.bird_vel_fp = 0
+        self.ground_fp = 0
+        self._last_ground_off = None
+        if self.ground_a is not None:
+            self.ground_a.set_x(0)
+            self.ground_b.set_x(self.SCREEN_WIDTH)
+        elif self.ground_tiled is not None:
+            self.ground_tiled.set_offset_x(0)
+        self._frame_no = 0
+        self._game_over_final_shown = False
         self.pipes = []
         self.last_time = time.ticks_ms()
 
@@ -455,7 +481,7 @@ class QuasiBird(Activity):
         for i in range(min(3, self.MAX_PIPES)):
             gap_y = random.randint(self.PIPE_MIN_Y, self.PIPE_MAX_Y)
             pipe = Pipe(
-                self.SCREEN_WIDTH + i * self.PIPE_SPAWN_DISTANCE,
+                (self.SCREEN_WIDTH + i * self.PIPE_SPAWN_DISTANCE) * self._FP,
                 gap_y,
                 self.PIPE_GAP_SIZE,
             )
@@ -476,7 +502,7 @@ class QuasiBird(Activity):
     def flap(self):
         """Make the bird flap"""
         if not self.game_over:
-            self.bird_velocity = self.FLAP_VELOCITY
+            self.bird_vel_fp = self.FLAP_FP
 
     def update_pipe_images(self):
         """Update pipe image positions and visibility"""
@@ -489,13 +515,14 @@ class QuasiBird(Activity):
             if i < self.MAX_PIPES:
                 pipe_imgs = self.pipe_images[i]
                 pipe_imgs["in_use"] = True
+                pipe_x = pipe.x_fp // self._FP
 
                 pipe_imgs["top"].remove_flag(lv.obj.FLAG.HIDDEN)
-                pipe_imgs["top"].set_pos(int(pipe.x), int(pipe.gap_y - self.PIPE_IMAGE_HEIGHT))
+                pipe_imgs["top"].set_pos(pipe_x, pipe.gap_y - self.PIPE_IMAGE_HEIGHT)
 
                 # Show and update bottom pipe
                 pipe_imgs["bottom"].remove_flag(lv.obj.FLAG.HIDDEN)
-                pipe_imgs["bottom"].set_pos(int(pipe.x),int(pipe.gap_y + pipe.gap_size))
+                pipe_imgs["bottom"].set_pos(pipe_x, pipe.gap_y + pipe.gap_size)
 
         # Hide unused pipe images
         for pipe_img in self.pipe_images:
@@ -505,19 +532,20 @@ class QuasiBird(Activity):
 
     def check_collision(self):
         """Check if bird collides with pipes or boundaries"""
+        bird_y = self.bird_y_fp // self._FP
         # Check ground and ceiling
-        if self.bird_y <= 0 or self.bird_y >= self.SCREEN_HEIGHT - self.GROUND_HEIGHT - self.bird_size + self.bird_overlap:
+        if bird_y <= 0 or bird_y >= self.SCREEN_HEIGHT - self.GROUND_HEIGHT - self.bird_size + self.bird_overlap:
             return True
 
         # Check pipe collision
         bird_left = self.BIRD_X + self.bird_overlap
         bird_right = self.BIRD_X + self.bird_size - self.bird_overlap
-        bird_top = self.bird_y + self.bird_overlap
-        bird_bottom = self.bird_y + self.bird_size - self.bird_overlap
+        bird_top = bird_y + self.bird_overlap
+        bird_bottom = bird_y + self.bird_size - self.bird_overlap
 
         for pipe in self.pipes:
-            pipe_left = pipe.x
-            pipe_right = pipe.x + pipe.width
+            pipe_left = pipe.x_fp // self._FP
+            pipe_right = pipe_left + pipe.width
 
             # Check if bird is in horizontal range of pipe
             if bird_right > pipe_left and bird_left < pipe_right:
@@ -532,50 +560,74 @@ class QuasiBird(Activity):
 
         current_time = time.ticks_ms()
         delta_ms = time.ticks_diff(current_time, self.last_time)
-        delta_time = delta_ms / 1000.0  # Convert to seconds
         self.last_time = current_time
+        # Clamp: after a hitch (GC pause, slow flash write) physics goes
+        # slow-motion for a moment instead of teleporting through pipes.
+        # All math below is integer delta_ms, no float allocations.
+        if delta_ms > 100:
+            delta_ms = 100
+        elif delta_ms < 0:
+            delta_ms = 0
 
+        # set_text() always mallocs + invalidates, even for identical strings,
+        # so only send it when the text actually changed. sysmon reports every
+        # ~300 ms, so ~19 of 20 frames would otherwise be redundant writes.
         if self.show_fps == 1:
-            self.fps_label.set_text(f"FPS:{self.last_fps}")
+            fps_text = "FPS:%s" % self.last_fps
+            if fps_text != self._last_fps_text:
+                self._last_fps_text = fps_text
+                self.fps_label.set_text(fps_text)
         elif self.show_fps == 2:
-            self.fps_label.set_text(f"FPS:{round(self.average_fps)}")
+            fps_text = "FPS:%s" % self.average_fps
+            if fps_text != self._last_fps_text:
+                self._last_fps_text = fps_text
+                self.fps_label.set_text(fps_text)
 
         if not self.game_started or self.game_paused:
             return
 
         if self.game_over:
             # Make the ghost bird float upwards
-            self.bird_y += self.ghost_bird_float_velocity * delta_time
-            self.ghost_bird_img.set_y(int(self.bird_y))
+            self.bird_y_fp += self.GHOST_VEL_FP * delta_ms // self._FP
+            self.ghost_bird_img.set_y(self.bird_y_fp // self._FP)
             # Check if 2 seconds have passed since game over to update the label
-            if self.game_over_time > 0 and (current_time - self.game_over_time) >= 2000:
+            if self.game_over_time > 0 and (current_time - self.game_over_time) >= 2000 and not self._game_over_final_shown:
+                self._game_over_final_shown = True
                 self.game_over_label.set_text("Game Over!\nTap to Restart")
             return
 
-        # Update physics
-        self.bird_velocity += self.GRAVITY * delta_time
-        self.bird_y += self.bird_velocity * delta_time
+        # Update physics (integer fixed-point: velocity in milli-px/s,
+        # position in milli-px; sub-pixel motion accumulates instead of
+        # truncating to zero like whole-pixel SPEED * dt // 1000 would)
+        self.bird_vel_fp += self.GRAVITY_FP * delta_ms // self._FP
+        self.bird_y_fp += self.bird_vel_fp * delta_ms // self._FP
 
         # Update bird position
-        self.bird_img.set_y(int(self.bird_y))
+        self.bird_img.set_y(self.bird_y_fp // self._FP)
 
-        # Update cloud parallax scrolling (slower than pipes for depth)
+        # Update cloud parallax scrolling (slower than pipes for depth).
+        # Physics runs every frame so trajectories stay exact, but the LVGL
+        # position (and its invalidate + alpha blend + sky repaint) refreshes
+        # on even frames only: 30px/s is ~0.5px/frame, invisible either way.
+        self._frame_no += 1
+        show_clouds = (self._frame_no & 1) == 0
         for i, cloud_img in enumerate(self.cloud_images):
-            self.cloud_positions[i] -= self.CLOUD_SPEED * delta_time
+            self.cloud_positions[i] -= self.CLOUD_SPEED_FP * delta_ms // self._FP
 
             # Wrap cloud when it goes off screen
-            if self.cloud_positions[i] < -60:  # Cloud width is ~50px
-                self.cloud_positions[i] = self.SCREEN_WIDTH + 20
+            if self.cloud_positions[i] < -60 * self._FP:  # Cloud width is ~50px
+                self.cloud_positions[i] = (self.SCREEN_WIDTH + 20) * self._FP
 
             # Update cloud position
-            cloud_img.set_x(int(self.cloud_positions[i]))
+            if show_clouds:
+                cloud_img.set_x(self.cloud_positions[i] // self._FP)
 
         # Update pipes
         for pipe in self.pipes:
-            pipe.x -= self.PIPE_SPEED * delta_time
+            pipe.x_fp -= self.PIPE_SPEED_FP * delta_ms // self._FP
 
             # Check if pipe was passed (for scoring)
-            if not pipe.passed and pipe.x + pipe.width < self.BIRD_X:
+            if not pipe.passed and pipe.x_fp // self._FP + pipe.width < self.BIRD_X:
                 pipe.passed = True
                 self.score += 1
                 self.score_label.set_text(str(self.score))
@@ -588,7 +640,7 @@ class QuasiBird(Activity):
                     self.bird_img.set_src(f"{self.ASSET_PATH}fire_bird.png")
 
         # Remove off-screen pipes and spawn new ones
-        if self.pipes and self.pipes[0].x < -self.pipes[0].width:
+        if self.pipes and self.pipes[0].x_fp // self._FP < -self.pipes[0].width:
             # Remove the first pipe
             self.pipes.pop(0)
 
@@ -597,7 +649,7 @@ class QuasiBird(Activity):
                 last_pipe = self.pipes[-1]
                 gap_y = random.randint(self.PIPE_MIN_Y, self.PIPE_MAX_Y)
                 new_pipe = Pipe(
-                    last_pipe.x + self.PIPE_SPAWN_DISTANCE,
+                    last_pipe.x_fp + self.PIPE_SPAWN_DISTANCE * self._FP,
                     gap_y,
                     self.PIPE_GAP_SIZE,
                 )
@@ -606,10 +658,24 @@ class QuasiBird(Activity):
         # Update pipe image positions and visibility
         self.update_pipe_images()
 
-        # Update ground scrolling (using tiling with offset)
-        self.ground_x -= self.PIPE_SPEED * delta_time
-        # No need to reset - tiling handles wrapping automatically
-        self.ground_img.set_offset_x(int(self.ground_x))
+        # Update ground scrolling. ground_fp stays bounded (modulo one screen
+        # width) so it never outgrows MicroPython small ints in long sessions.
+        self.ground_fp = (self.ground_fp + self.PIPE_SPEED_FP * delta_ms // self._FP) % (self.SCREEN_WIDTH * self._FP)
+        phase = self.ground_fp // self._FP
+        if self.ground_tiled is not None:
+            # set_offset_x() invalidates the whole strip unconditionally, so
+            # skip it when the pixel offset didn't advance since last frame.
+            # No need to reset - tiling handles wrapping automatically
+            ground_off = -(self.ground_fp // self._FP)
+            if ground_off != self._last_ground_off:
+                self._last_ground_off = ground_off
+                self.ground_tiled.set_offset_x(ground_off)
+        else:
+            # Two leapfrogging strips: identical pixels to the tiled ground
+            # at every phase, 1 draw call each instead of 12 tiled ones.
+            # set_x() is a no-op when the pixel didn't change.
+            self.ground_a.set_x(-phase)
+            self.ground_b.set_x(self.SCREEN_WIDTH - phase)
 
         # Check collision
         if self.check_collision():
@@ -619,7 +685,7 @@ class QuasiBird(Activity):
             # Hide the original bird
             # self.bird_img.add_flag(lv.obj.FLAG.HIDDEN)
             # Show the ghost bird at the original bird's position
-            self.ghost_bird_img.set_pos(self.BIRD_X, int(self.bird_y))
+            self.ghost_bird_img.set_pos(self.BIRD_X, self.bird_y_fp // self._FP)
             self.ghost_bird_img.remove_flag(lv.obj.FLAG.HIDDEN)
             self.ghost_bird_img.move_foreground()
 
@@ -641,9 +707,9 @@ class QuasiBird(Activity):
             self.game_over_label.remove_flag(lv.obj.FLAG.HIDDEN)
 
     average_samples = 20
-    buffer = [0.0] * average_samples
+    buffer = [0] * average_samples
     index = 0
-    sum = 0.0
+    sum = 0
     count = 0  # Number of valid samples (0 to average_samples)
     def moving_average(self, value):
         # Subtract the value being overwritten (if buffer is full)
@@ -656,7 +722,7 @@ class QuasiBird(Activity):
         self.buffer[self.index] = value
         # Advance index
         self.index = (self.index + 1) % self.average_samples
-        return self.sum / self.count
+        return self.sum // self.count
 
     # Custom log callback to capture FPS
     def log_callback(self, level, log_str):
@@ -674,6 +740,6 @@ class QuasiBird(Activity):
                 fps_part = log_str.split("FPS")[0].split("sysmon:")[1].strip()
                 self.last_fps = int(fps_part)
                 self.average_fps = self.moving_average(self.last_fps)
-                print(f"Current FPS: {self.last_fps} - Average 10 FPS: {self.average_fps}")
+                print("Current FPS: %s - Average FPS: %s" % (self.last_fps, self.average_fps))
             except (IndexError, ValueError):
                 pass

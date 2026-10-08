@@ -213,6 +213,17 @@ ground = create_ground_tile(
 ground.save('assets/ground.png', 'PNG', optimize=True)
 print(f"Ground sprite saved: assets/ground.png ({ground.width}x{ground.height} tileable)")
 
+# 4b. Pre-composed 240px ground strip (12 tiles side by side). The game
+# scrolls this with two ping-ponging image objects (1 draw call each)
+# instead of one TILE-mode object (12 draw calls per frame).
+ground_strip = Image.new(ground.mode, (240, ground.height))
+if ground.mode == 'P':
+    ground_strip.putpalette(ground.getpalette())
+for _i in range(240 // ground.width):
+    ground_strip.paste(ground, (_i * ground.width, 0))
+ground_strip.save('assets/ground_strip.png', 'PNG', optimize=True)
+print(f"Ground strip saved: assets/ground_strip.png ({ground_strip.width}x{ground_strip.height})")
+
 # 5. Create cloud sprite (for parallax scrolling)
 def create_cloud(width=50, height=25):
     """Create a simple cloud shape"""
